@@ -540,6 +540,17 @@ function setFmt(f){
   renderSetupPlayers();
 }
 
+function updateHcp(i){
+  const intEl=document.getElementById('hcp-int-'+i);
+  const decEl=document.getElementById('hcp-dec-'+i);
+  if(!intEl||!decEl) return;
+  const intVal=parseInt(intEl.value)||0;
+  const decVal=parseInt(decEl.value)||0;
+  const hcp=intVal+(decVal/10);
+  setupPlayers[i].hcpIdx=hcp;
+  if(i===0) savePlayer1(setupPlayers[0]);
+}
+
 function setTeeColor(i,v){if(setupPlayers[i])setupPlayers[i].teeColor=v;}
 function setGender(i,v){if(setupPlayers[i]){setupPlayers[i].gender=v;if(i===0)savePlayer1(setupPlayers[0]);}}
 function renderSetupPlayers(){
@@ -550,9 +561,17 @@ function renderSetupPlayers(){
       <div class="pr-hdr">Speler ${i+1}</div>
       <div class="pg2">
         <div><label>Naam${i===0?' <span style="font-size:9px;color:var(--muted)">(onthouden)</span>':''}</label><input type="text" value="${p.name}" placeholder="Naam" oninput="setupPlayers[${i}].name=this.value${i===0?';savePlayer1(setupPlayers[0])':''}"></div>
-        <div><label>Handicap Index</label><input type="text" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" value="${p.hcpIdx}" placeholder="12.4"
-  oninput="var v=this.value.replace(',','.'); setupPlayers[${i}].hcpIdx=v;${i===0?'savePlayer1(setupPlayers[0]);':''}"
-  onblur="this.value=this.value.replace(',','.');"></div>
+        <div><label>Handicap Index</label>
+          <div style="display:flex;align-items:center;gap:4px">
+            <input type="number" inputmode="numeric" id="hcp-int-${i}" min="0" max="54" value="${Math.floor(parseFloat(String(p.hcpIdx).replace(',','.'))||0)}" placeholder="12"
+              style="width:52px;padding:8px 6px;text-align:center;border:1.5px solid #ddd;border-radius:7px;font-size:14px;background:var(--cream)"
+              oninput="updateHcp(${i})">
+            <span style="font-size:16px;font-weight:600;color:var(--muted)">,</span>
+            <input type="number" inputmode="numeric" id="hcp-dec-${i}" min="0" max="9" value="${Math.round((parseFloat(String(p.hcpIdx).replace(',','.'))||0)*10)%10}" placeholder="0"
+              style="width:40px;padding:8px 6px;text-align:center;border:1.5px solid #ddd;border-radius:7px;font-size:14px;background:var(--cream)"
+              oninput="updateHcp(${i})">
+          </div>
+        </div>
       </div>
       <div class="pg3" style="margin-top:6px">
         <div><label>Geslacht</label>
