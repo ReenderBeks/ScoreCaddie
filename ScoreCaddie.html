@@ -550,7 +550,7 @@ function renderSetupPlayers(){
       <div class="pr-hdr">Speler ${i+1}</div>
       <div class="pg2">
         <div><label>Naam${i===0?' <span style="font-size:9px;color:var(--muted)">(onthouden)</span>':''}</label><input type="text" value="${p.name}" placeholder="Naam" oninput="setupPlayers[${i}].name=this.value${i===0?';savePlayer1(setupPlayers[0])':''}"></div>
-        <div><label>Handicap Index</label><input type="number" step="0.1" value="${p.hcpIdx}" placeholder="12.4" inputmode="decimal" oninput="setupPlayers[${i}].hcpIdx=this.value${i===0?';savePlayer1(setupPlayers[0])':''}"></div>
+        <div><label>Handicap Index</label><input type="text" inputmode="decimal" value="${p.hcpIdx}" placeholder="12.4" oninput="setupPlayers[${i}].hcpIdx=this.value.replace(',','.')${i===0?';savePlayer1(setupPlayers[0])':''}"></div>
       </div>
       <div class="pg3" style="margin-top:6px">
         <div><label>Geslacht</label>
