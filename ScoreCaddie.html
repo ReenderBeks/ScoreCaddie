@@ -569,13 +569,13 @@ function renderSetupPlayers(){
       <div class="pr-hdr">Speler ${i+1}</div>
       <div class="pg2">
         <div><label>Naam${i===0?' <span style="font-size:9px;color:var(--muted)">(onthouden)</span>':''}</label><input type="text" value="${p.name}" placeholder="Naam" oninput="setupPlayers[${i}].name=this.value${i===0?';savePlayer1(setupPlayers[0])':''}"></div>
-        <div><label>Handicap Index — <span id="hcp-lbl-${i}" style="color:var(--gd);font-weight:700">${p.hcpIdx||0}</span></label>
-          <div style="display:flex;align-items:center;gap:8px">
-            <input type="range" id="hcp-range-${i}" min="0" max="540" step="1"
-              value="${Math.round((parseFloat(String(p.hcpIdx||0).replace(',','.'))||0)*10)}"
-              style="flex:1;accent-color:var(--gd);height:6px"
-              oninput="updateHcpSlider(${i},this.value)">
-          </div>
+        <div><label>Handicap Index</label>
+          <input type="tel" id="hcp-${i}"
+            value="${String(p.hcpIdx||'').replace('.',',')}"
+            placeholder="18,4"
+            style="width:100%;padding:8px 10px;border:1.5px solid #ddd;border-radius:7px;font-size:14px;background:var(--cream)"
+            onkeypress="return /[0-9,.]/.test(event.key)"
+            oninput="setupPlayers[${i}].hcpIdx=this.value.replace(',','.'); ${i===0?'savePlayer1(setupPlayers[0]);':''}">
         </div>
       </div>
       <div class="pg3" style="margin-top:6px">
