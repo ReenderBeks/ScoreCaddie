@@ -550,7 +550,9 @@ function renderSetupPlayers(){
       <div class="pr-hdr">Speler ${i+1}</div>
       <div class="pg2">
         <div><label>Naam${i===0?' <span style="font-size:9px;color:var(--muted)">(onthouden)</span>':''}</label><input type="text" value="${p.name}" placeholder="Naam" oninput="setupPlayers[${i}].name=this.value${i===0?';savePlayer1(setupPlayers[0])':''}"></div>
-        <div><label>Handicap Index</label><input type="text" inputmode="decimal" value="${p.hcpIdx}" placeholder="12.4" oninput="setupPlayers[${i}].hcpIdx=this.value.replace(',','.')${i===0?';savePlayer1(setupPlayers[0])':''}"></div>
+        <div><label>Handicap Index</label><input type="text" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" value="${p.hcpIdx}" placeholder="12.4"
+  oninput="var v=this.value.replace(',','.'); setupPlayers[${i}].hcpIdx=v;${i===0?'savePlayer1(setupPlayers[0]);':''}"
+  onblur="this.value=this.value.replace(',','.');"></div>
       </div>
       <div class="pg3" style="margin-top:6px">
         <div><label>Geslacht</label>
@@ -587,7 +589,8 @@ function rmSetupPlayer(i){setupPlayers.splice(i,1);renderSetupPlayers();}
 // ---- HANDICAP ----
 function courseHcp(hcpIdx,slope,cr,par,is9holes){
   // For 9-hole courses, NGF halves the handicap index before applying slope/CR
-  const idx = is9holes ? parseFloat(hcpIdx)/2 : parseFloat(hcpIdx);
+  const cleaned = String(hcpIdx).replace(',','.');
+  const idx = is9holes ? parseFloat(cleaned)/2 : parseFloat(cleaned);
   return Math.round(idx*(slope/113)+(cr-par));
 }
 function getTeeRatings(course,teeColor,gender){
@@ -651,7 +654,7 @@ function startRound(){
   // Filter lege spelersslots eruit
   const activePlayers=setupPlayers.filter(p=>p.name.trim());
   if(!activePlayers.length){alert('Vul minimaal één speler in.');return;}
-  if(activePlayers.some(p=>p.hcpIdx===''||isNaN(parseFloat(p.hcpIdx)))){alert('Vul de handicap in voor alle spelers.');return;}
+  if(activePlayers.some(p=>p.hcpIdx===''||isNaN(parseFloat(String(p.hcpIdx).replace(',','.'))))){alert('Vul de handicap in voor alle spelers.');return;}
   if(activePlayers.some(p=>!p.teeColor)){alert('Selecteer een tee-kleur voor alle spelers.');return;}
   if(fmt==='sixpoints'&&activePlayers.length!==3){alert('6-punten vereist 3 spelers.');return;}
   if(fmt==='matchplay'&&activePlayers.length!==2){alert('Matchplay vereist 2 spelers.');return;}
@@ -661,7 +664,7 @@ function startRound(){
     players:activePlayers.map(p=>{
       const ratings=getTeeRatings(course,p.teeColor,p.gender);
       return {
-        name:p.name.trim(), hcpIdx:parseFloat(p.hcpIdx),
+        name:p.name.trim(), hcpIdx:parseFloat(String(p.hcpIdx).replace(",",".")),
         gender:p.gender, teeColor:p.teeColor,
         chcp:courseHcp(p.hcpIdx,ratings.slope,ratings.cr,ratings.par,course.holes===9),
         ratings
