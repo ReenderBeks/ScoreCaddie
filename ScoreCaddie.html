@@ -86,6 +86,61 @@ table.sc tr.tot td.lbl{background:var(--gp)!important;}
 .sum-row:last-child{border-bottom:none;}
 .nine-lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:8px 0 3px;}
 .tee-chip{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:4px;vertical-align:middle;border:1px solid rgba(0,0,0,.2);}
+/* Confetti */
+@keyframes fall {
+  0%   { transform: translateY(-20px) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+}
+.confetti-ball {
+  position: fixed;
+  font-size: 22px;
+  animation: fall linear forwards;
+  pointer-events: none;
+  z-index: 9999;
+}
+.winner-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  z-index: 9998;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  text-align: center;
+  padding: 24px;
+  animation: fadeIn 0.5s ease;
+}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+.winner-overlay h1 {
+  font-family: 'DM Serif Display', serif;
+  font-size: 48px;
+  color: var(--gold-l);
+  text-shadow: 0 2px 20px rgba(0,0,0,0.5);
+  margin-bottom: 8px;
+}
+.winner-overlay .winner-name {
+  font-family: 'DM Serif Display', serif;
+  font-size: 36px;
+  color: white;
+  margin-bottom: 16px;
+}
+.winner-overlay .winner-pts {
+  font-size: 18px;
+  color: rgba(255,255,255,0.8);
+  margin-bottom: 24px;
+}
+.winner-overlay button {
+  padding: 12px 32px;
+  border: none;
+  border-radius: 30px;
+  background: var(--gold);
+  color: var(--gd);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+}
 /* Score cell decorations */
 .sc-wrap-cell{position:relative;display:inline-flex;align-items:center;justify-content:center;}
 .sc-inp.eagle{background:#ffd700;border-color:#b8860b;border-width:2px;border-radius:50%;}
@@ -285,22 +340,233 @@ function go(id){
 // ---- HOME ----
 const PRESET_COURSES = [
   {
-  id: 900001,
-  name: "Golf Torrequebrada – 18 holes",
-  holes: 18,
-  tees: [
-    {color:"white", crM:71.2, srM:139, parM:72, crF:77.5, srF:141, parF:72},
-    {color:"yellow", crM:70.9, srM:139, parM:72, crF:77.1, srF:140, parF:72},
-    {color:"blue",  crM:67.3, srM:130, parM:72, crF:72.3, srF:131, parF:72},
-    {color:"red",   crM:66.5, srM:127, parM:72, crF:71.3, srF:129, parF:72}
-  ],
-  siData: [
-    {par:5,si:8},{par:4,si:6},{par:3,si:18},{par:4,si:10},{par:4,si:14},
-    {par:5,si:4},{par:4,si:12},{par:4,si:2},{par:3,si:16},
-    {par:4,si:3},{par:3,si:15},{par:5,si:5},{par:3,si:17},{par:5,si:7},
-    {par:4,si:11},{par:4,si:1},{par:4,si:9},{par:4,si:13}
-  ]
-}
+    id: 900001,
+    name: "Golf Torrequebrada – 18 holes",
+    holes: 18,
+    tees: [
+      {color:"white",  crM:71.2, srM:139, parM:72, crF:77.5, srF:141, parF:72},
+      {color:"yellow", crM:70.9, srM:139, parM:72, crF:77.1, srF:140, parF:72},
+      {color:"blue",   crM:67.3, srM:130, parM:72, crF:72.3, srF:131, parF:72},
+      {color:"red",    crM:66.5, srM:127, parM:72, crF:71.3, srF:129, parF:72}
+    ],
+    siData: [
+      {par:5,si:8},{par:4,si:6},{par:3,si:18},{par:4,si:10},{par:4,si:14},
+      {par:5,si:4},{par:4,si:12},{par:4,si:2},{par:3,si:16},
+      {par:4,si:3},{par:3,si:15},{par:5,si:5},{par:3,si:17},{par:5,si:7},
+      {par:4,si:11},{par:4,si:1},{par:4,si:9},{par:4,si:13}
+    ]
+  },
+  {
+    id: 900002,
+    name: "Amsterdam Old Course – 9 holes",
+    holes: 9,
+    tees: [
+      {color:"white",  crM:34.7, srM:132, parM:35, crF:0,    srF:0,   parF:0},
+      {color:"yellow", crM:34.5, srM:131, parM:36, crF:37.3, srF:141, parF:36},
+      {color:"blue",   crM:34.1, srM:128, parM:36, crF:36.9, srF:141, parF:36},
+      {color:"red",    crM:33.3, srM:117, parM:36, crF:35.7, srF:130, parF:36}
+    ],
+    siData: [
+      {par:5,si:15},{par:4,si:5},{par:4,si:1},{par:3,si:11},{par:4,si:7},
+      {par:4,si:17},{par:3,si:9},{par:4,si:13},{par:5,si:3}
+    ]
+  },
+  {
+    id: 900003,
+    name: "Amsterdam Old Course – 18 holes Heren (Geel-Wit)",
+    holes: 18,
+    tees: [
+      {color:"yellow", crM:69.2, srM:131, parM:71, crF:0, srF:0, parF:0}
+    ],
+    siData: [
+      {par:5,si:15},{par:4,si:5},{par:4,si:1},{par:3,si:11},{par:4,si:7},
+      {par:4,si:17},{par:3,si:9},{par:4,si:13},{par:5,si:3},
+      {par:4,si:15},{par:5,si:5},{par:4,si:1},{par:3,si:11},{par:4,si:7},
+      {par:4,si:17},{par:3,si:9},{par:3,si:13},{par:5,si:3}
+    ]
+  },
+  {
+    id: 900004,
+    name: "Amsterdam Old Course – 18 holes Dames (Rood-Blauw)",
+    holes: 18,
+    tees: [
+      {color:"red", crM:0, srM:0, parM:0, crF:72.6, srF:135, parF:72}
+    ],
+    siData: [
+      {par:5,si:15},{par:4,si:5},{par:4,si:1},{par:3,si:11},{par:4,si:7},
+      {par:4,si:17},{par:3,si:9},{par:4,si:13},{par:5,si:3},
+      {par:4,si:15},{par:5,si:5},{par:4,si:1},{par:3,si:11},{par:4,si:7},
+      {par:4,si:17},{par:3,si:9},{par:4,si:13},{par:5,si:3}
+    ]
+  },
+  {
+    id: 900005,
+    name: "Goyer Golf & Country Club – 18 holes",
+    holes: 18,
+    tees: [
+      {color:"white",  crM:75.0, srM:143, parM:72, crF:0,    srF:0,   parF:0},
+      {color:"yellow", crM:73.1, srM:140, parM:72, crF:78.8, srF:150, parF:72},
+      {color:"blue",   crM:70.1, srM:130, parM:72, crF:75.6, srF:141, parF:72},
+      {color:"red",    crM:68.2, srM:127, parM:72, crF:73.4, srF:136, parF:72}
+    ],
+    siData: [
+      {par:4,si:16},{par:3,si:10},{par:4,si:6},{par:5,si:2},{par:3,si:18},
+      {par:4,si:14},{par:5,si:4},{par:4,si:8},{par:4,si:12},
+      {par:4,si:17},{par:3,si:13},{par:4,si:5},{par:5,si:1},{par:3,si:15},
+      {par:4,si:11},{par:4,si:7},{par:5,si:3},{par:4,si:9}
+    ]
+  },
+  {
+    id: 900006,
+    name: "Goyer Golf & Country Club – 1e 9 holes",
+    holes: 9,
+    tees: [
+      {color:"white",  crM:37.2, srM:137, parM:36, crF:0,    srF:0,   parF:0},
+      {color:"yellow", crM:36.4, srM:134, parM:36, crF:39.2, srF:148, parF:36},
+      {color:"blue",   crM:34.8, srM:131, parM:36, crF:37.8, srF:137, parF:36},
+      {color:"red",    crM:33.9, srM:129, parM:36, crF:36.4, srF:134, parF:36}
+    ],
+    siData: [
+      {par:4,si:16},{par:3,si:10},{par:4,si:6},{par:5,si:2},{par:3,si:18},
+      {par:4,si:14},{par:5,si:4},{par:4,si:8},{par:4,si:12}
+    ]
+  },
+  {
+    id: 900007,
+    name: "Goyer Golf & Country Club – 2e 9 holes",
+    holes: 9,
+    tees: [
+      {color:"white",  crM:37.9, srM:149, parM:36, crF:0,    srF:0,   parF:0},
+      {color:"yellow", crM:36.8, srM:147, parM:36, crF:39.7, srF:151, parF:36},
+      {color:"blue",   crM:35.4, srM:129, parM:36, crF:37.9, srF:144, parF:36},
+      {color:"red",    crM:34.4, srM:125, parM:36, crF:37.0, srF:138, parF:36}
+    ],
+    siData: [
+      {par:4,si:17},{par:3,si:13},{par:4,si:5},{par:5,si:1},{par:3,si:15},
+      {par:4,si:11},{par:4,si:7},{par:5,si:3},{par:4,si:9}
+    ]
+  },
+  // ===== ALMEERDERHOUT =====
+  {
+    id: 900008,
+    name: "Almeerderhout – Gooimeer 9 holes",
+    holes: 9,
+    tees: [
+      {color:"white",  crM:73.4, srM:134, parM:72, crF:0,    srF:0,   parF:0},
+      {color:"yellow", crM:72.5, srM:135, parM:72, crF:78.9, srF:143, parF:72},
+      {color:"blue",   crM:69.7, srM:119, parM:72, crF:75.9, srF:135, parF:72},
+      {color:"red",    crM:68.2, srM:109, parM:72, crF:73.0, srF:137, parF:72},
+      {color:"orange", crM:65.3, srM:103, parM:72, crF:69.3, srF:116, parF:72}
+    ],
+    siData: [
+      {par:5,si:11},{par:4,si:5},{par:4,si:7},{par:4,si:1},{par:4,si:3},
+      {par:3,si:13},{par:5,si:15},{par:3,si:17},{par:4,si:9}
+    ]
+  },
+  {
+    id: 900009,
+    name: "Almeerderhout – Markermeer 9 holes",
+    holes: 9,
+    tees: [
+      {color:"white",  crM:74.8, srM:145, parM:72, crF:0,    srF:0,   parF:0},
+      {color:"yellow", crM:72.7, srM:142, parM:72, crF:78.9, srF:154, parF:72},
+      {color:"blue",   crM:69.7, srM:124, parM:72, crF:75.2, srF:140, parF:72},
+      {color:"red",    crM:69.0, srM:117, parM:72, crF:74.2, srF:135, parF:72},
+      {color:"orange", crM:65.0, srM:110, parM:72, crF:69.5, srF:118, parF:72}
+    ],
+    siData: [
+      {par:4,si:9},{par:5,si:15},{par:3,si:17},{par:4,si:1},{par:5,si:11},
+      {par:4,si:5},{par:3,si:13},{par:4,si:7},{par:4,si:3}
+    ]
+  },
+  {
+    id: 900010,
+    name: "Almeerderhout – IJmeer 9 holes",
+    holes: 9,
+    tees: [
+      {color:"white",  crM:72.1, srM:130, parM:72, crF:0,    srF:0,   parF:0},
+      {color:"yellow", crM:71.8, srM:130, parM:72, crF:77.3, srF:134, parF:72},
+      {color:"blue",   crM:67.6, srM:119, parM:72, crF:73.8, srF:129, parF:72},
+      {color:"red",    crM:66.4, srM:109, parM:72, crF:73.4, srF:128, parF:72},
+      {color:"orange", crM:63.5, srM:104, parM:72, crF:68.4, srF:118, parF:72}
+    ],
+    siData: [
+      {par:4,si:5},{par:4,si:17},{par:5,si:13},{par:3,si:15},{par:5,si:11},
+      {par:4,si:1},{par:3,si:9},{par:4,si:7},{par:4,si:3}
+    ]
+  },
+  {
+    id: 900011,
+    name: "Almeerderhout – Gooimeer-Markermeer 18 holes",
+    holes: 18,
+    tees: [
+      {color:"white",  crM:74.1, srM:139, parM:72, crF:0,    srF:0,   parF:0},
+      {color:"yellow", crM:72.6, srM:138, parM:72, crF:78.9, srF:149, parF:72},
+      {color:"blue",   crM:69.7, srM:122, parM:72, crF:75.6, srF:138, parF:72},
+      {color:"red",    crM:68.6, srM:113, parM:72, crF:73.6, srF:137, parF:72},
+      {color:"orange", crM:65.2, srM:107, parM:72, crF:69.4, srF:117, parF:72}
+    ],
+    siData: [
+      {par:5,si:11},{par:4,si:5},{par:4,si:7},{par:4,si:1},{par:4,si:3},
+      {par:3,si:13},{par:5,si:15},{par:3,si:17},{par:4,si:9},
+      {par:4,si:10},{par:5,si:16},{par:3,si:18},{par:4,si:2},{par:5,si:12},
+      {par:4,si:6},{par:3,si:14},{par:4,si:8},{par:4,si:4}
+    ]
+  },
+  {
+    id: 900012,
+    name: "Almeerderhout – Gooimeer-IJmeer 18 holes",
+    holes: 18,
+    tees: [
+      {color:"white",  crM:72.7, srM:132, parM:72, crF:0,    srF:0,   parF:0},
+      {color:"yellow", crM:72.2, srM:132, parM:72, crF:78.1, srF:139, parF:72},
+      {color:"blue",   crM:68.7, srM:119, parM:72, crF:74.8, srF:133, parF:72},
+      {color:"red",    crM:67.3, srM:109, parM:72, crF:73.2, srF:133, parF:72},
+      {color:"orange", crM:64.4, srM:104, parM:72, crF:68.9, srF:117, parF:72}
+    ],
+    siData: [
+      {par:5,si:11},{par:4,si:5},{par:4,si:7},{par:4,si:1},{par:4,si:3},
+      {par:3,si:13},{par:5,si:15},{par:3,si:17},{par:4,si:9},
+      {par:4,si:6},{par:4,si:18},{par:5,si:14},{par:3,si:16},{par:5,si:12},
+      {par:4,si:2},{par:3,si:10},{par:4,si:8},{par:4,si:4}
+    ]
+  },
+  {
+    id: 900013,
+    name: "Almeerderhout – Markermeer-IJmeer 18 holes",
+    holes: 18,
+    tees: [
+      {color:"white",  crM:73.4, srM:138, parM:72, crF:0,    srF:0,   parF:0},
+      {color:"yellow", crM:72.3, srM:136, parM:72, crF:78.1, srF:144, parF:72},
+      {color:"blue",   crM:68.7, srM:122, parM:72, crF:74.5, srF:135, parF:72},
+      {color:"red",    crM:67.7, srM:113, parM:72, crF:73.8, srF:131, parF:72},
+      {color:"orange", crM:64.3, srM:107, parM:72, crF:69.0, srF:118, parF:72}
+    ],
+    siData: [
+      {par:4,si:9},{par:5,si:15},{par:3,si:17},{par:4,si:1},{par:5,si:11},
+      {par:4,si:5},{par:3,si:13},{par:4,si:7},{par:4,si:3},
+      {par:4,si:10},{par:4,si:18},{par:5,si:14},{par:3,si:16},{par:5,si:12},
+      {par:4,si:2},{par:3,si:6},{par:4,si:8},{par:4,si:4}
+    ]
+  },
+  {
+    id: 900014,
+    name: "Golfbaan De Texelse – 18 holes",
+    holes: 18,
+    tees: [
+      {color:"white",  crM:73.8, srM:141, parM:72, crF:0,    srF:0,   parF:0},
+      {color:"yellow", crM:71.9, srM:141, parM:72, crF:0,    srF:0,   parF:0},
+      {color:"blue",   crM:68.2, srM:118, parM:72, crF:0,    srF:0,   parF:0},
+      {color:"red",    crM:67.6, srM:115, parM:72, crF:0,    srF:0,   parF:0},
+      {color:"orange", crM:64.5, srM:103, parM:72, crF:0,    srF:0,   parF:0}
+    ],
+    siData: [
+      {par:4,si:10},{par:4,si:4},{par:4,si:14},{par:5,si:8},{par:4,si:6},
+      {par:3,si:18},{par:5,si:12},{par:3,si:16},{par:4,si:2},
+      {par:3,si:17},{par:4,si:11},{par:3,si:15},{par:5,si:5},{par:4,si:9},
+      {par:5,si:1},{par:3,si:13},{par:4,si:7},{par:5,si:3}
+    ]
+  }
 ];
 
 function showPresets(){
@@ -1104,7 +1370,83 @@ function confirmEnd(){
     rounds.push(JSON.parse(JSON.stringify(R)));
     save('gm4-rounds',rounds);
     go('s-summary');
+    // Show winner overlay after short delay
+    setTimeout(()=>{
+      const course = courses.find(c=>c.id===R.courseId);
+      const {players:rp, fmt:f} = R;
+      let winnerName = '', subtitle = '';
+      if(f==='stableford'){
+        const pts = rp.map((p,pi)=>{
+          let t=0;
+          for(let hi=0;hi<course.holes;hi++){
+            const s=R.scores[pi][hi]||0, str=getStrokes(pi,hi), h=course.siData[hi];
+            t+=sfPts(s,h.par,str)||0;
+          }
+          return {name:p.name, pts:t};
+        }).sort((a,b)=>b.pts-a.pts);
+        if(pts[0].pts > 0){
+          winnerName = pts.length>1&&pts[0].pts===pts[1].pts ? 'Gelijkspel!' : pts[0].name;
+          subtitle = pts.map(p=>p.name+': '+p.pts+' ptn').join(' · ');
+        }
+      } else if(f==='matchplay'&&rp.length===2){
+        let w0=0,w1=0;
+        for(let hi=0;hi<course.holes;hi++){
+          const s0=R.scores[0][hi],s1=R.scores[1][hi];
+          if(!s0||!s1) continue;
+          const n0=s0-getStrokes(0,hi),n1=s1-getStrokes(1,hi);
+          if(n0<n1)w0++;else if(n0>n1)w1++;
+        }
+        winnerName = w0>w1?rp[0].name:w0<w1?rp[1].name:'Gelijkspel!';
+        subtitle = rp[0].name+': '+w0+' holes · '+rp[1].name+': '+w1+' holes';
+      } else if(f==='sixpoints'){
+        const pts = rp.map((p,pi)=>{
+          let t=0;
+          for(let hi=0;hi<course.holes;hi++){const p6=calc6pts(hi,course);if(p6)t+=p6[pi];}
+          return {name:p.name,pts:t};
+        }).sort((a,b)=>b.pts-a.pts);
+        if(pts[0].pts>0){
+          winnerName=pts[0].pts===pts[1]?.pts?'Gelijkspel!':pts[0].name;
+          subtitle=pts.map(p=>p.name+': '+p.pts+' ptn').join(' · ');
+        }
+      } else if(f==='strokeplay'){
+        const sc=rp.map((p,pi)=>({name:p.name,netto:Object.values(R.scores[pi]).reduce((a,b)=>a+(b||0),0)-p.chcp})).sort((a,b)=>a.netto-b.netto);
+        winnerName=sc.length>1&&sc[0].netto===sc[1].netto?'Gelijkspel!':sc[0].name;
+        subtitle=sc.map(s=>s.name+': '+s.netto+' netto').join(' · ');
+      }
+      if(winnerName) showWinnerOverlay(winnerName, subtitle);
+    }, 400);
   }
+}
+
+function launchConfetti(){
+  const emojis = ['⛳','🏌️','🥇','✨','⭐','🌟'];
+  for(let i=0;i<60;i++){
+    setTimeout(()=>{
+      const el = document.createElement('div');
+      el.className = 'confetti-ball';
+      el.textContent = emojis[Math.floor(Math.random()*emojis.length)];
+      el.style.left = Math.random()*100+'vw';
+      el.style.top = '-30px';
+      el.style.fontSize = (16+Math.random()*20)+'px';
+      el.style.animationDuration = (1.5+Math.random()*2.5)+'s';
+      el.style.animationDelay = '0s';
+      document.body.appendChild(el);
+      setTimeout(()=>el.remove(), 4000);
+    }, i*60);
+  }
+}
+
+function showWinnerOverlay(name, subtitle){
+  launchConfetti();
+  const overlay = document.createElement('div');
+  overlay.className = 'winner-overlay';
+  overlay.id = 'winner-overlay';
+  overlay.innerHTML = '<div style="font-size:64px;margin-bottom:8px">🏆</div>'
+    + '<div class="winner-name">#1</div>'
+    + '<h1>' + name + '</h1>'
+    + '<div class="winner-pts">' + subtitle + '</div>'
+    + '<button onclick="document.getElementById('winner-overlay').remove()">🎉 Bekijk eindstand</button>';
+  document.body.appendChild(overlay);
 }
 
 function renderSummary(){
