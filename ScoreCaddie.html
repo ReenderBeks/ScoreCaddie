@@ -308,16 +308,15 @@ function showPresets(){
   document.getElementById('import-card').style.display='none';
   document.getElementById('export-card').style.display='none';
   const list = document.getElementById('presets-list');
-  list.innerHTML = PRESET_COURSES.map((c,i) => {
-    const exists = courses.some(x=>x.id===c.id||x.name===c.name);
-    return `<div class="ci" style="cursor:default">
-      <div><div class="ci-name">\${c.name}</div>
-      <div class="ci-meta">\${c.holes} holes · \${c.tees.length} tee-kleuren</div></div>
-      \${exists
-        ? `<span style="color:var(--gl);font-size:12px;font-weight:600">✓ Al toegevoegd</span>`
-        : `<button class="btn btn-p btn-sm" onclick="addPreset(${i})" style="margin:0">+ Toevoegen</button>`
-      }
-    </div>`;
+  list.innerHTML = PRESET_COURSES.map(function(c,i){
+    const exists = courses.some(function(x){return x.id===c.id||x.name===c.name;});
+    const btn = exists
+      ? '<span style="color:var(--gl);font-size:12px;font-weight:600">✓ Al toegevoegd</span>'
+      : '<button class="btn btn-p btn-sm" onclick="addPreset('+i+')" style="margin:0">+ Toevoegen</button>';
+    return '<div class="ci" style="cursor:default">'
+      + '<div><div class="ci-name">'+c.name+'</div>'
+      + '<div class="ci-meta">'+c.holes+' holes - '+c.tees.length+' tee-kleuren</div></div>'
+      + btn + '</div>';
   }).join('');
 }
 
