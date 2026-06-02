@@ -315,7 +315,7 @@ function showPresets(){
       <div class="ci-meta">\${c.holes} holes · \${c.tees.length} tee-kleuren</div></div>
       \${exists
         ? `<span style="color:var(--gl);font-size:12px;font-weight:600">✓ Al toegevoegd</span>`
-        : `<button class="btn btn-p btn-sm" onclick="addPreset(\${i})" style="margin:0">+ Toevoegen</button>`
+        : `<button class="btn btn-p btn-sm" onclick="addPreset(${i})" style="margin:0">+ Toevoegen</button>`
       }
     </div>`;
   }).join('');
