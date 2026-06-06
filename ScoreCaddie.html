@@ -238,7 +238,7 @@ table.sc tr.tot td.lbl{background:var(--gp)!important;}
     <div id="gedeeld-results"></div>
     <hr style="border:none;border-top:1px solid #eee;margin:12px 0">
     <hr style="border:none;border-top:1px solid #eee;margin:12px 0">
-    <button class="btn btn-p btn-sm" onclick="loadAllFromFirebase()" style="margin-bottom:8px">⬇️ Laad alle banen uit Firebase</button>
+    <button class="btn btn-p btn-sm" onclick="browseAllFromFirebase()" style="margin-bottom:8px">🔍 Bekijk alle banen in Firebase</button>
     <hr style="border:none;border-top:1px solid #eee;margin:8px 0">
     <div style="font-size:12px;font-weight:600;color:var(--gd);margin-bottom:6px">📤 Jouw baan delen</div>
     <p style="font-size:11px;color:var(--muted);margin-bottom:6px">Deel een van jouw opgeslagen banen zodat anderen hem kunnen laden.</p>
@@ -795,6 +795,29 @@ function importAIData(){
     document.getElementById('ai-import-text').value = '';
   } catch(e){
     alert('Fout bij verwerken: '+e.message+'. Controleer of je volledige JSON hebt geplakt.');
+  }
+}
+
+async function browseAllFromFirebase(){
+  if(!window.fbReady){ alert('Firebase niet beschikbaar.'); return; }
+  const el = document.getElementById('gedeeld-results');
+  el.innerHTML='<div style="font-size:12px;color:var(--muted)">Laden...</div>';
+  try {
+    const snap = await fbDb.collection('courses').orderBy('name').get();
+    const results = [];
+    snap.forEach(doc => {
+      const d = doc.data();
+      if(d.name) results.push({...d, _docId: doc.id});
+    });
+    if(!results.length){ el.innerHTML='<div class="alert alert-i">Geen banen gevonden.</div>'; return; }
+    window._gedeeldResults = results;
+    el.innerHTML = results.map((c,i) => '<div class="ci" style="cursor:default">'
+      + '<div><div class="ci-name">'+c.name+'</div>'
+      + '<div class="ci-meta">'+c.holes+' holes · '+(c.tees||[]).length+' tee-kleuren · gedeeld door '+(c.sharedBy||'onbekend')+'</div></div>'
+      + '<button class="btn btn-p btn-sm" onclick="importGedeeld('+i+')" style="margin:0">+ Laden</button>'
+      + '</div>').join('');
+  } catch(e){
+    el.innerHTML='<div class="alert alert-i">Fout: '+e.message+'</div>';
   }
 }
 
