@@ -197,7 +197,13 @@ table.sc tr.tot td.lbl{background:var(--gp)!important;}
 </style>
 </head>
 <body>
-<div class="hdr"><h1>⛳ ScoreCaddie</h1><small>Handicap · Matchplay · Stableford · Strokeplay · 6-punten</small></div>
+<div class="hdr" style="display:flex;justify-content:space-between;align-items:center">
+  <div>
+    <h1>⛳ ScoreCaddie</h1>
+    <small>Handicap · Matchplay · Stableford · Strokeplay · 6-punten</small>
+  </div>
+  <button onclick="showHelp()" style="background:rgba(255,255,255,0.15);border:1.5px solid rgba(255,255,255,0.3);color:var(--gold-l);border-radius:50%;width:32px;height:32px;font-size:16px;cursor:pointer;font-weight:700;flex-shrink:0">?</button>
+</div>
 
 <!-- HOME -->
 <div id="s-home" class="scr on">
@@ -207,7 +213,6 @@ table.sc tr.tot td.lbl{background:var(--gp)!important;}
     <button class="btn btn-s" onclick="go('s-courses')">Banen beheren</button>
     <hr style="border:none;border-top:1px solid #eee;margin:12px 0">
     <button class="btn btn-s" onclick="showCommunity()" style="font-size:12px;padding:8px">🌍 Gedeelde banen</button>
-    <button class="btn btn-s" onclick="loadDefaultCourses()" style="font-size:12px;padding:8px;margin-top:6px">📚 Laad standaardbanen</button>
   </div>
   <div id="export-card" class="card" style="display:none">
     <div class="ctitle">📤 Exporteer</div>
@@ -239,6 +244,37 @@ table.sc tr.tot td.lbl{background:var(--gp)!important;}
     <textarea id="import-text" style="width:100%;height:80px;font-size:11px;border:1.5px solid #ddd;border-radius:7px;padding:8px;font-family:monospace;background:var(--cream)" placeholder="Plak code hier..."></textarea>
     <button class="btn btn-p" onclick="importData()" style="margin-top:8px">✅ Importeer</button>
     <button class="btn btn-s" onclick="// import-card removed">Annuleer</button>
+  </div>
+  <div id="help-card" class="card" style="display:none">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <div class="ctitle" style="margin:0">❓ Help & Uitleg</div>
+      <button onclick="document.getElementById('help-card').style.display='none'" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--muted)">×</button>
+    </div>
+
+    <div style="font-size:13px;font-weight:600;color:var(--gd);margin-bottom:4px">⛳ Ronde starten</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px">Kies een baan, stel spelers in met handicap en tee-kleur, kies een spelformat en begin. De app berekent automatisch hoeveel slagen elke speler krijgt.</div>
+
+    <div style="font-size:13px;font-weight:600;color:var(--gd);margin-bottom:4px">🗺️ Banen beheren</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px">Voer handmatig een baan in met CR, Slope, Par en SI per hole. Of gebruik Gedeelde banen om banen van anderen te laden.</div>
+
+    <div style="font-size:13px;font-weight:600;color:var(--gd);margin-bottom:4px">🌍 Gedeelde banen</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px">Zoek en laad banen die andere gebruikers hebben gedeeld. Of deel jouw eigen banen zodat anderen ze kunnen gebruiken.</div>
+
+    <div style="font-size:13px;font-weight:600;color:var(--gd);margin-bottom:4px">🤖 Baan toevoegen via Claude/ChatGPT</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:6px">Maak twee screenshots:</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:4px">1. De baanhandicap tabel (CR, Slope, Par per tee-kleur)</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px">2. De scorekaart (par en SI per hole)</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:6px">Stuur ze naar claude.ai of chatgpt.com met deze tekst:</div>
+    <div style="font-size:11px;background:var(--cream);border:1px solid #ddd;border-radius:7px;padding:8px;font-family:monospace;color:var(--text);margin-bottom:10px;line-height:1.5">"Analyseer deze baanhandicap tabel en scorekaart en geef me de baangegevens in ScoreCaddie formaat als JSON. Geef alleen de JSON terug."</div>
+    <div style="font-size:12px;color:var(--muted)">Kopieer de JSON → Gedeelde banen → Baan toevoegen via Claude/ChatGPT → Plak → Verwerk en deel.</div>
+
+    <div style="font-size:13px;font-weight:600;color:var(--gd);margin:10px 0 4px">🎮 Spelformats</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:2px"><strong>Stableford</strong> — punten per hole, meeste punten wint</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:2px"><strong>Matchplay</strong> — hole voor hole, 1 vs 1</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:2px"><strong>Strokeplay</strong> — totaal slagen, laagste netto wint</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px"><strong>6-punten</strong> — per hole 6 punten verdelen, 3 spelers</div>
+
+    <div style="font-size:11px;color:var(--muted);text-align:center">ScoreCaddie · github.com/ReenderBeks/ScoreCaddie</div>
   </div>
   <div id="rec-card" class="card" style="display:none">
     <div class="ctitle">📋 Recente rondes</div>
@@ -797,6 +833,11 @@ function loadDefaultCourses(){
   save('gm4-courses', courses);
   alert(added + ' standaardbanen geladen! ✅' + (presets.length - added > 0 ? ' ('+(presets.length-added)+' stonden al in je lijst)' : ''));
   renderHome();
+}
+
+function showHelp(){
+  const el = document.getElementById('help-card');
+  if(el) el.style.display = el.style.display==='none'?'block':'none';
 }
 
 function renderHome(){
