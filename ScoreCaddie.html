@@ -238,6 +238,8 @@ table.sc tr.tot td.lbl{background:var(--gp)!important;}
     <div id="gedeeld-results"></div>
     <hr style="border:none;border-top:1px solid #eee;margin:12px 0">
     <hr style="border:none;border-top:1px solid #eee;margin:12px 0">
+    <button class="btn btn-p btn-sm" onclick="loadAllFromFirebase()" style="margin-bottom:8px">⬇️ Laad alle banen uit Firebase</button>
+    <hr style="border:none;border-top:1px solid #eee;margin:8px 0">
     <div style="font-size:12px;font-weight:600;color:var(--gd);margin-bottom:6px">📤 Jouw baan delen</div>
     <p style="font-size:11px;color:var(--muted);margin-bottom:6px">Deel een van jouw opgeslagen banen zodat anderen hem kunnen laden.</p>
     <button class="btn btn-p btn-sm" onclick="shareAllCourses()" style="margin-bottom:8px">⬆️ Upload alle banen naar Firebase</button>
@@ -736,6 +738,27 @@ async function searchGedeeld(){
       + '</div>').join('');
   } catch(e) {
     el.innerHTML='<div class="alert alert-i">Fout: '+e.message+'</div>';
+  }
+}
+
+async function loadAllFromFirebase(){
+  if(!window.fbReady){ alert('Firebase niet beschikbaar.'); return; }
+  try {
+    const snap = await fbDb.collection('courses').get();
+    let added = 0, skipped = 0;
+    snap.forEach(doc => {
+      const c = doc.data();
+      if(!c.name) return;
+      const exists = courses.some(x=>x.name===c.name);
+      if(exists){ skipped++; return; }
+      courses.push({...c, id: Date.now()+Math.random()});
+      added++;
+    });
+    save('gm4-courses', courses);
+    alert(added + ' banen geladen! ✅' + (skipped?' ('+skipped+' stonden al in je lijst)':''));
+    showCommunity();
+  } catch(e){
+    alert('Fout: '+e.message);
   }
 }
 
