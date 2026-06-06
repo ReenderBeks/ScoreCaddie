@@ -278,7 +278,21 @@ table.sc tr.tot td.lbl{background:var(--gp)!important;}
     <div style="font-size:12px;color:var(--muted);margin-bottom:4px">1. De baanhandicap tabel (CR, Slope, Par per tee-kleur)</div>
     <div style="font-size:12px;color:var(--muted);margin-bottom:10px">2. De scorekaart (par en SI per hole)</div>
     <div style="font-size:12px;color:var(--muted);margin-bottom:6px">Stuur ze naar claude.ai of chatgpt.com met deze tekst:</div>
-    <div style="font-size:11px;background:var(--cream);border:1px solid #ddd;border-radius:7px;padding:8px;font-family:monospace;color:var(--text);margin-bottom:10px;line-height:1.5">"Analyseer deze baanhandicap tabel en scorekaart en geef me de baangegevens in ScoreCaddie formaat als JSON. Geef alleen de JSON terug."</div>
+    <div style="font-size:11px;background:var(--cream);border:1px solid #ddd;border-radius:7px;padding:8px;font-family:monospace;color:var(--text);margin-bottom:10px;line-height:1.6">Analyseer de bijgevoegde scorekaart en handicaptabel en geef me de baangegevens in dit exacte JSON formaat. Geef ALLEEN de JSON terug, geen uitleg:<br><br>
+{<br>
+&nbsp;"name": "Naam van de baan",<br>
+&nbsp;"holes": 18,<br>
+&nbsp;"tees": [{<br>
+&nbsp;&nbsp;"color": "yellow",<br>
+&nbsp;&nbsp;"crM": 72.5, "srM": 135, "parM": 72,<br>
+&nbsp;&nbsp;"crF": 78.9, "srF": 143, "parF": 72<br>
+&nbsp;}],<br>
+&nbsp;"siData": [<br>
+&nbsp;&nbsp;{"par": 4, "si": 8},<br>
+&nbsp;&nbsp;{"par": 3, "si": 16}<br>
+&nbsp;]<br>
+}<br><br>
+Gebruik voor color: white, yellow, blue, red, orange, black of gold. Voeg alle tee-kleuren toe. siData bevat alle holes op volgorde.</div>
     <div style="font-size:12px;color:var(--muted)">Kopieer de JSON → Gedeelde banen → Baan toevoegen via Claude/ChatGPT → Plak → Verwerk en deel.</div>
 
     <div style="font-size:13px;font-weight:600;color:var(--gd);margin:10px 0 4px">🎮 Spelformats</div>
