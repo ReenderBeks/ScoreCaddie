@@ -244,6 +244,11 @@ table.sc tr.tot td.lbl{background:var(--gp)!important;}
     <p style="font-size:11px;color:var(--muted);margin-bottom:6px">Deel een van jouw opgeslagen banen zodat anderen hem kunnen laden.</p>
     <button class="btn btn-p btn-sm" onclick="shareAllCourses()" style="margin-bottom:8px">⬆️ Upload alle banen naar Firebase</button>
     <div id="share-course-list"></div>
+    <hr style="border:none;border-top:1px solid #eee;margin:12px 0">
+    <div style="font-size:12px;font-weight:600;color:var(--gd);margin-bottom:6px">🤖 Baan toevoegen via Claude/ChatGPT</div>
+    <p style="font-size:11px;color:var(--muted);margin-bottom:6px">Maak screenshots van de handicaptabel en scorekaart, stuur ze naar claude.ai of chatgpt.com met de vraag "geef me dit in ScoreCaddie JSON formaat", en plak de JSON hier:</p>
+    <textarea id="ai-import-text" style="width:100%;height:90px;font-size:11px;border:1.5px solid #ddd;border-radius:7px;padding:8px;font-family:monospace;background:var(--cream)" placeholder="Plak hier de JSON van Claude of ChatGPT..."></textarea>
+    <button class="btn btn-p" onclick="importAIData()" style="margin-top:6px">✅ Verwerk en deel</button>
     <button class="btn btn-s" onclick="document.getElementById('gedeeld-card').style.display='none'" style="margin-top:8px">Sluiten</button>
   </div>
   <div id="import-card" class="card" style="display:none">
@@ -738,6 +743,44 @@ async function searchGedeeld(){
       + '</div>').join('');
   } catch(e) {
     el.innerHTML='<div class="alert alert-i">Fout: '+e.message+'</div>';
+  }
+}
+
+function importAIData(){
+  const text = document.getElementById('ai-import-text').value.trim();
+  if(!text){ alert('Plak eerst baandata.'); return; }
+  try {
+    const clean = text.replace(/```json|```javascript|```/g,'').trim();
+    const data = JSON.parse(clean);
+    if(!data.name||!data.holes||!data.siData||!data.tees){
+      alert('Ongeldige baandata. Controleer of je de volledige JSON hebt geplakt.');
+      return;
+    }
+    const course = {...data, id: Date.now()};
+    const exists = courses.some(x=>x.name===course.name);
+    if(exists){ if(!confirm(course.name+' staat al in je lijst. Overschrijven?')) return; courses=courses.filter(x=>x.name!==course.name); }
+    courses.push(course);
+    save('gm4-courses', courses);
+    // Upload to Firebase
+    if(window.fbReady){
+      const name = prompt('Jouw naam (wordt zichtbaar in Gedeelde banen):', '');
+      if(name){
+        const {id, ...courseData} = course;
+        window.fbShareCourse(courseData, name)
+          .then(r => {
+            if(r && r.alreadyExists) alert(data.name + ' opgeslagen lokaal. Stond al in Firebase.');
+            else alert(data.name + ' opgeslagen en gedeeld! ✅');
+          })
+          .catch(e => alert(data.name + ' lokaal opgeslagen. Delen mislukt: '+e.message));
+      } else {
+        alert(data.name + ' lokaal opgeslagen! ✅');
+      }
+    } else {
+      alert(data.name + ' lokaal opgeslagen! ✅');
+    }
+    document.getElementById('ai-import-text').value = '';
+  } catch(e){
+    alert('Fout bij verwerken: '+e.message+'. Controleer of je volledige JSON hebt geplakt.');
   }
 }
 
