@@ -92,8 +92,8 @@ input:focus,select:focus{outline:none;border-color:var(--gl);}
 .ci.sel{border-color:var(--gd);background:var(--gp);}
 .ci-name{font-weight:600;font-size:13px;}
 .ci-meta{font-size:10px;color:var(--muted);margin-top:2px;}
-.pr{border:1.5px solid #e8e8e8;border-radius:7px;padding:10px;margin-bottom:8px;position:relative;}
-.pr-hdr{font-weight:600;color:var(--gd);font-size:12px;margin-bottom:6px;}
+.pr{border:2px solid #aaa;border-radius:7px;padding:10px;margin-bottom:12px;position:relative;box-shadow:0 1px 4px rgba(0,0,0,0.08);}
+.pr-hdr{font-weight:800;color:var(--gd);font-size:14px;margin-bottom:8px;letter-spacing:0.3px;}
 .pg2{display:grid;grid-template-columns:1fr 1fr;gap:7px;}
 .pg3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;}
 .rm{position:absolute;top:7px;right:7px;background:none;border:none;color:var(--muted);cursor:pointer;font-size:15px;}
@@ -760,16 +760,18 @@ async function shareAllCourses(){
 async function shareCourse(idx){
   if(!window.fbReady){ alert('Firebase niet beschikbaar.'); return; }
   const c = courses[idx];
-  const name = prompt('Jouw naam (wordt zichtbaar bij de baan):', '');
-  if(!name) return;
   try {
     const {id, ...courseData} = c;
-    const result = await window.fbShareCourse(courseData, name);
-    if(result && result.alreadyExists){
-      alert(c.name + ' staat al in Gedeelde banen. Niet opnieuw geüpload.');
-    } else {
-      alert(c.name + ' gedeeld! ✅');
+    // Check first if already exists
+    const checkSnap = await fbDb.collection('courses').where('name','==',c.name).get();
+    if(!checkSnap.empty){
+      alert(c.name + ' staat al in Gedeelde banen.');
+      return;
     }
+    const name = prompt('Jouw naam (wordt zichtbaar bij de baan):', '');
+    if(!name) return;
+    const result = await window.fbShareCourse(courseData, name);
+    alert(c.name + ' gedeeld! ✅');
     showCommunity();
   } catch(e) {
     alert('Fout bij delen: ' + e.message);
@@ -1036,7 +1038,7 @@ function renderSetup(){
       el.innerHTML='<option value="">Geen banen — voeg er eerst een toe</option>';
     } else {
       el.innerHTML='<option value="">-- Kies een baan --</option>'
-        + courses.map(c=>`<option value="${c.id}" ${selCourseId===c.id?'selected':''}>${c.name} (${c.holes} holes)</option>`).join('');
+        + courses.slice().sort((a,b)=>a.name.localeCompare(b.name)).map(c=>`<option value="${c.id}" ${selCourseId===c.id?'selected':''}>${c.name} (${c.holes} holes)</option>`).join('');
     }
   }
   renderSetupPlayers();
