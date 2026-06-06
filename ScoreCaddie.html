@@ -207,6 +207,7 @@ table.sc tr.tot td.lbl{background:var(--gp)!important;}
     <button class="btn btn-s" onclick="go('s-courses')">Banen beheren</button>
     <hr style="border:none;border-top:1px solid #eee;margin:12px 0">
     <button class="btn btn-s" onclick="showCommunity()" style="font-size:12px;padding:8px">🌍 Gedeelde banen</button>
+    <button class="btn btn-s" onclick="loadDefaultCourses()" style="font-size:12px;padding:8px;margin-top:6px">📚 Laad standaardbanen</button>
   </div>
   <div id="export-card" class="card" style="display:none">
     <div class="ctitle">📤 Exporteer</div>
@@ -780,6 +781,22 @@ function importData(){
   } catch(e){
     alert('Ongeldige code. Probeer opnieuw.');
   }
+}
+
+function loadDefaultCourses(){
+  const presets = window._getPresets ? window._getPresets() : [];
+  if(!presets.length){ alert('Geen standaardbanen gevonden.'); return; }
+  let added = 0;
+  presets.forEach(p => {
+    const exists = courses.some(c => c.name === p.name);
+    if(!exists){
+      courses.push({...p, id: Date.now() + Math.random()});
+      added++;
+    }
+  });
+  save('gm4-courses', courses);
+  alert(added + ' standaardbanen geladen! ✅' + (presets.length - added > 0 ? ' ('+(presets.length-added)+' stonden al in je lijst)' : ''));
+  renderHome();
 }
 
 function renderHome(){
