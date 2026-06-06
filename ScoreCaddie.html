@@ -37,6 +37,24 @@
 
   // Signal that Firebase is ready
   window.dispatchEvent(new Event('firebase-ready'));
+
+  // Upload preset courses to Firebase if not done yet
+  async function uploadPresets(){
+    if(localStorage.getItem('sc-presets-uploaded')) return;
+    try {
+      const snap = await getDocs(collection(db, 'courses'));
+      if(snap.size > 0){ localStorage.setItem('sc-presets-uploaded','1'); return; }
+      // Upload all preset courses
+      const presets = window._getPresets ? window._getPresets() : [];
+      for(const c of presets){
+        const {id, ...data} = c;
+        await addDoc(collection(db, 'courses'), {...data, sharedBy:'ScoreCaddie', sharedAt: new Date().toISOString()});
+      }
+      localStorage.setItem('sc-presets-uploaded','1');
+      console.log('Presets uploaded to Firebase');
+    } catch(e){ console.log('Preset upload skipped:', e.message); }
+  }
+  uploadPresets();
 </script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap');
@@ -117,15 +135,17 @@ table.sc tr.tot td.lbl{background:var(--gp)!important;}
 .tee-chip{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:4px;vertical-align:middle;border:1px solid rgba(0,0,0,.2);}
 /* Confetti */
 @keyframes fall {
-  0%   { transform: translateY(-20px) rotate(0deg); opacity: 1; }
-  100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+  0%   { transform: translateY(-40px) rotate(0deg) scale(1); opacity: 1; }
+  80%  { opacity: 1; }
+  100% { transform: translateY(110vh) rotate(180deg) scale(0.8); opacity: 0; }
 }
 .confetti-ball {
   position: fixed;
-  font-size: 22px;
-  animation: fall linear forwards;
+  font-size: 28px;
+  animation: fall ease-in forwards;
   pointer-events: none;
   z-index: 9999;
+  filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3));
 }
 .winner-overlay {
   position: fixed;
@@ -190,35 +210,28 @@ table.sc tr.tot td.lbl{background:var(--gp)!important;}
     <button class="btn btn-p" onclick="go('s-setup')">Ronde starten</button>
     <button class="btn btn-s" onclick="go('s-courses')">Banen beheren</button>
     <hr style="border:none;border-top:1px solid #eee;margin:12px 0">
-    <button class="btn btn-s" onclick="exportData()" style="font-size:12px;padding:8px">📤 Exporteer baandata</button>
-    <button class="btn btn-s" onclick="showImport()" style="font-size:12px;padding:8px;margin-top:6px">📥 Importeer baandata</button>
-    <button class="btn btn-s" onclick="showPresets()" style="font-size:12px;padding:8px;margin-top:6px">⛳ Baan toevoegen uit bibliotheek</button>
-    <button class="btn btn-s" onclick="showCommunity()" style="font-size:12px;padding:8px;margin-top:6px">🌍 Community banen zoeken</button>
+    <button class="btn btn-s" onclick="showCommunity()" style="font-size:12px;padding:8px">🌍 Gedeelde banen</button>
   </div>
   <div id="export-card" class="card" style="display:none">
     <div class="ctitle">📤 Exporteer</div>
     <p style="font-size:12px;color:var(--muted);margin-bottom:8px">Kopieer deze code en plak hem op je andere apparaat via Importeer.</p>
     <textarea id="export-text" style="width:100%;height:80px;font-size:11px;border:1.5px solid #ddd;border-radius:7px;padding:8px;font-family:monospace;background:var(--cream)" readonly></textarea>
     <button class="btn btn-p" onclick="copyExport()" style="margin-top:8px">📋 Kopieer code</button>
-    <button class="btn btn-s" onclick="document.getElementById('export-card').style.display='none'">Sluiten</button>
+    <button class="btn btn-s" onclick="// export-card removed">Sluiten</button>
   </div>
-  <div id="presets-card" class="card" style="display:none">
-    <div class="ctitle">⛳ Baanbibliotheek</div>
-    <p style="font-size:12px;color:var(--muted);margin-bottom:8px">Selecteer een baan om direct toe te voegen.</p>
-    <div id="presets-list"></div>
-    <button class="btn btn-s" onclick="document.getElementById('presets-card').style.display='none'" style="margin-top:8px">Sluiten</button>
-  </div>
-  <div id="community-card" class="card" style="display:none">
-    <div class="ctitle">🌍 Community baanbibliotheek</div>
-    <p style="font-size:12px;color:var(--muted);margin-bottom:8px">Zoek een baan of deel jouw baan met andere gebruikers.</p>
+
+  <div id="gedeeld-card" class="card" style="display:none">
+    <div class="ctitle">🌍 Gedeelde banen</div>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:8px">Zoek en laad banen die anderen gedeeld hebben, of deel jouw eigen banen.</p>
     <div style="display:flex;gap:6px;margin-bottom:8px">
-      <input type="text" id="community-search" placeholder="Zoek op baannaam..." style="flex:1;padding:8px 10px;border:1.5px solid #ddd;border-radius:7px;font-size:13px">
-      <button class="btn btn-p btn-sm" onclick="searchCommunity()" style="margin:0;white-space:nowrap">🔍 Zoek</button>
+      <input type="text" id="gedeeld-search" placeholder="Zoek op baannaam..." style="flex:1;padding:8px 10px;border:1.5px solid #ddd;border-radius:7px;font-size:13px">
+      <button class="btn btn-p btn-sm" onclick="searchGedeeld()" style="margin:0;white-space:nowrap">🔍 Zoek</button>
     </div>
-    <div id="community-results"></div>
+    <div id="gedeeld-results"></div>
     <hr style="border:none;border-top:1px solid #eee;margin:12px 0">
-    <div style="font-size:12px;font-weight:600;color:var(--gd);margin-bottom:6px">Eigen baan delen</div>
-    <p style="font-size:11px;color:var(--muted);margin-bottom:6px">Deel een van jouw opgeslagen banen met de community.</p>
+    <hr style="border:none;border-top:1px solid #eee;margin:12px 0">
+    <div style="font-size:12px;font-weight:600;color:var(--gd);margin-bottom:6px">📤 Jouw baan delen</div>
+    <p style="font-size:11px;color:var(--muted);margin-bottom:6px">Deel een van jouw opgeslagen banen zodat anderen hem kunnen laden.</p>
     <div id="share-course-list"></div>
     <button class="btn btn-s" onclick="document.getElementById('community-card').style.display='none'" style="margin-top:8px">Sluiten</button>
   </div>
@@ -227,7 +240,7 @@ table.sc tr.tot td.lbl{background:var(--gp)!important;}
     <p style="font-size:12px;color:var(--muted);margin-bottom:8px">Plak hier de exportcode van je andere apparaat.</p>
     <textarea id="import-text" style="width:100%;height:80px;font-size:11px;border:1.5px solid #ddd;border-radius:7px;padding:8px;font-family:monospace;background:var(--cream)" placeholder="Plak code hier..."></textarea>
     <button class="btn btn-p" onclick="importData()" style="margin-top:8px">✅ Importeer</button>
-    <button class="btn btn-s" onclick="document.getElementById('import-card').style.display='none'">Annuleer</button>
+    <button class="btn btn-s" onclick="// import-card removed">Annuleer</button>
   </div>
   <div id="rec-card" class="card" style="display:none">
     <div class="ctitle">📋 Recente rondes</div>
@@ -311,6 +324,10 @@ table.sc tr.tot td.lbl{background:var(--gp)!important;}
     <div class="sc-wrap"><table class="sc" id="sc-table"></table></div>
   </div>
   <div class="card"><div id="sc-totals"></div></div>
+  <div id="extras-winners-card" class="card" style="display:none">
+    <div class="ctitle">🎯 Extra wedstrijdjes</div>
+    <div id="extras-winners-list"></div>
+  </div>
   <div style="margin:0 14px 14px;max-width:600px;margin-left:auto;margin-right:auto">
     <button class="btn btn-p" onclick="confirmEnd()" style="margin-top:0">🏁 Ronde beëindigen & eindstand</button>
   </div>
@@ -358,6 +375,7 @@ let setupPlayers = [
   {name:'',hcpIdx:'',gender:'m',teeColor:'',holes18:true}
 ];
 let numPlayers = 2;
+let extras = {}; // {holeIdx: 'ntp' or 'ld' or 'both', winner: null}
 
 // ---- ACTIVE ROUND ----
 let R = null; // { courseId, fmt, date, players:[{name,hcpIdx,gender,teeColor,chcp,ratings}], scores:{pi:{hi:val}} }
@@ -382,6 +400,7 @@ function go(id){
 }
 
 // ---- HOME ----
+window._getPresets = function(){ return PRESET_COURSES; };
 const PRESET_COURSES = [
   {
     id: 900001,
@@ -614,9 +633,10 @@ const PRESET_COURSES = [
 ];
 
 function showPresets(){
-  document.getElementById('presets-card').style.display='block';
-  document.getElementById('import-card').style.display='none';
-  document.getElementById('export-card').style.display='none';
+  // Presets now loaded via gedeelde banen
+  showCommunity();
+  return;
+  // dead code below kept for reference
   const list = document.getElementById('presets-list');
   list.innerHTML = PRESET_COURSES.map(function(c,i){
     const exists = courses.some(function(x){return x.id===c.id||x.name===c.name;});
@@ -641,10 +661,7 @@ function addPreset(i){
 }
 
 function showCommunity(){
-  document.getElementById('community-card').style.display='block';
-  document.getElementById('presets-card').style.display='none';
-  document.getElementById('import-card').style.display='none';
-  document.getElementById('export-card').style.display='none';
+  const _cc=document.getElementById('community-card'); if(_cc) _cc.style.display='block';
   // Populate share list
   const sl = document.getElementById('share-course-list');
   if(!courses.length){ sl.innerHTML='<div class="alert alert-i">Geen banen opgeslagen.</div>'; return; }
@@ -655,9 +672,9 @@ function showCommunity(){
     + '</div>').join('');
 }
 
-async function searchCommunity(){
-  const q = document.getElementById('community-search').value.trim().toLowerCase();
-  const el = document.getElementById('community-results');
+async function searchGedeeld(){
+  const q = document.getElementById('gedeeld-search').value.trim().toLowerCase();
+  const el = document.getElementById('gedeeld-results');
   if(!q){ el.innerHTML='<div class="alert alert-i">Vul een zoekterm in.</div>'; return; }
   if(!window.fbReady){ el.innerHTML='<div class="alert alert-i">Verbinding maken met database...</div>'; return; }
   el.innerHTML='<div style="font-size:12px;color:var(--muted)">Zoeken...</div>';
@@ -669,11 +686,11 @@ async function searchCommunity(){
       if(d.name && d.name.toLowerCase().includes(q)) results.push({id:doc.id, ...d});
     });
     if(!results.length){ el.innerHTML='<div class="alert alert-i">Geen banen gevonden voor "'+q+'".</div>'; return; }
-    window._communityResults = results;
+    window._gedeeldResults = results;
     el.innerHTML = results.map(c => '<div class="ci" style="cursor:default">'
       + '<div><div class="ci-name">'+c.name+'</div>'
       + '<div class="ci-meta">'+c.holes+' holes · '+(c.tees||[]).length+' tee-kleuren · gedeeld door '+( c.sharedBy||'onbekend')+'</div></div>'
-      + '<button class="btn btn-p btn-sm" onclick="importCommunity('+i+')" style="margin:0">+ Laden</button>'
+      + '<button class="btn btn-p btn-sm" onclick="importGedeeld('+i+')" style="margin:0">+ Laden</button>'
       + '</div>').join('');
   } catch(e) {
     el.innerHTML='<div class="alert alert-i">Fout: '+e.message+'</div>';
@@ -683,25 +700,25 @@ async function searchCommunity(){
 async function shareCourse(idx){
   if(!window.fbReady){ alert('Verbinding met database niet beschikbaar.'); return; }
   const c = courses[idx];
-  const name = prompt('Jouw naam (wordt zichtbaar in de community):', '');
+  const name = prompt('Jouw naam (wordt zichtbaar in de gedeeld):', '');
   if(!name) return;
   try {
+    const {id, ...courseData} = c;
     await window.fbAddDoc(window.fbCollection(window.fbDb, 'courses'), {
-      ...c,
+      ...courseData,
       sharedBy: name,
-      sharedAt: new Date().toISOString(),
-      id: undefined
+      sharedAt: new Date().toISOString()
     });
-    alert(c.name + ' gedeeld met de community! ✅');
+    alert(c.name + ' gedeeld met de gedeeld! ✅');
     showCommunity();
   } catch(e) {
     alert('Fout bij delen: ' + e.message);
   }
 }
 
-function importCommunity(idx){
+function importGedeeld(idx){
   try {
-    const c = window._communityResults[idx];
+    const c = window._gedeeldResults[idx];
     if(!c){ alert('Baan niet gevonden.'); return; }
     c.id = Date.now();
     const exists = courses.some(x=>x.name===c.name);
@@ -718,10 +735,12 @@ function exportData(){
     player1: JSON.parse(localStorage.getItem('gm4-player1')||'null')
   };
   const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
-  const el = document.getElementById('export-text');
-  if(el) el.value = encoded;
-  document.getElementById('export-card').style.display = 'block';
-  document.getElementById('import-card').style.display = 'none';
+  // Copy to clipboard
+  if(navigator.clipboard){
+    navigator.clipboard.writeText(encoded).then(()=>alert('Exportcode gekopieerd naar klembord! ✅ Bewaar hem ergens veilig.'));
+  } else {
+    prompt('Kopieer deze exportcode:', encoded);
+  }
 }
 
 function copyExport(){
@@ -733,8 +752,8 @@ function copyExport(){
 }
 
 function showImport(){
-  document.getElementById('import-card').style.display = 'block';
-  document.getElementById('export-card').style.display = 'none';
+  // import-card removed
+  // export-card removed
 }
 
 function importData(){
@@ -749,7 +768,7 @@ function importData(){
     if(data.player1){
       localStorage.setItem('gm4-player1', JSON.stringify(data.player1));
     }
-    document.getElementById('import-card').style.display = 'none';
+    // import-card removed
     alert('Geïmporteerd! ✅ ' + (data.courses||[]).length + ' baan/banen geladen.');
     renderHome();
   } catch(e){
@@ -927,6 +946,8 @@ function renderSetup(){
   if(pc) pc.style.display=show?'block':'none';
   if(sb) sb.style.display=show?'block':'none';
   if(ns) ns.style.display=show?'block':'none';
+  const ec2=document.getElementById('extras-card');
+  if(ec2) ec2.style.display=show?'block':'none';
   const el=document.getElementById('course-sel');
   if(!courses.length){
     el.innerHTML='<div class="alert alert-i">Geen banen. <span style="color:var(--gd);font-weight:700;cursor:pointer" onclick="go(\'s-courses\')">Voeg baan toe →</span></div>';
@@ -948,9 +969,12 @@ function selCourse(id){
   const pc=document.getElementById('players-card');
   const sb=document.getElementById('start-btn');
   const ns=document.getElementById('num-players-section');
+  const ec=document.getElementById('extras-card');
   if(pc) pc.style.display='block';
   if(sb) sb.style.display='block';
   if(ns) ns.style.display='block';
+  if(ec) ec.style.display='block';
+  renderExtras();
 }
 
 function changeNumPlayers(delta){
@@ -1002,6 +1026,39 @@ function updateHcp(i){
   const hcp=intVal+(decVal/10);
   setupPlayers[i].hcpIdx=hcp;
   if(i===0) savePlayer1(setupPlayers[0]);
+}
+
+function renderExtras(){
+  const course = courses.find(c=>c.id===selCourseId);
+  if(!course) return;
+  const el = document.getElementById('extras-list');
+  if(!el) return;
+  let html = '';
+  course.siData.forEach((h,hi)=>{
+    if(h.par===3){
+      const checked = extras[hi]==='ntp'||extras[hi]==='both';
+      html += '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f0f0f0">'
+        + '<input type="checkbox" id="ntp-'+hi+'" '+(checked?'checked':'')
+        +' onchange="toggleExtra('+hi+',\'ntp\',this.checked)" style="width:18px;height:18px;accent-color:var(--gd)">'
+        + '<label for="ntp-'+hi+'" style="font-size:13px;color:var(--text);margin:0">🎯 Nearest the Pin – Hole '+(hi+1)+' (par 3)</label>'
+        + '</div>';
+    }
+    if(h.par===5){
+      const checked = extras[hi]==='ld'||extras[hi]==='both';
+      html += '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f0f0f0">'
+        + '<input type="checkbox" id="ld-'+hi+'" '+(checked?'checked':'')
+        +' onchange="toggleExtra('+hi+',\'ld\',this.checked)" style="width:18px;height:18px;accent-color:var(--gd)">'
+        + '<label for="ld-'+hi+'" style="font-size:13px;color:var(--text);margin:0">💪 Longest Drive – Hole '+(hi+1)+' (par 5)</label>'
+        + '</div>';
+    }
+  });
+  if(!html) html = '<div class="alert alert-i">Geen par 3 of par 5 holes gevonden.</div>';
+  el.innerHTML = html;
+}
+
+function toggleExtra(hi, type, checked){
+  if(!checked){ delete extras[hi]; return; }
+  extras[hi] = type;
 }
 
 function setTeeColor(i,v){if(setupPlayers[i])setupPlayers[i].teeColor=v;}
@@ -1126,7 +1183,7 @@ function startRound(){
   if(fmt==='matchplay'&&activePlayers.length!==2){alert('Matchplay vereist 2 spelers.');return;}
 
   R={
-    courseId:selCourseId, fmt, date:new Date().toLocaleDateString('nl-NL'),
+    courseId:selCourseId, fmt, date:new Date().toLocaleDateString('nl-NL'), extras:JSON.parse(JSON.stringify(extras)), extraWinners:{},
     players:activePlayers.map(p=>{
       const ratings=getTeeRatings(course,p.teeColor,p.gender);
       return {
@@ -1466,6 +1523,38 @@ function updateTotals(){
     // matchplay: shown in banner only
   });
   document.getElementById('sc-totals').innerHTML=html;
+  renderExtrasWinners();
+}
+
+function renderExtrasWinners(){
+  if(!R||!R.extras||!Object.keys(R.extras).length) return;
+  const card=document.getElementById('extras-winners-card');
+  const list=document.getElementById('extras-winners-list');
+  if(!card||!list) return;
+  card.style.display='block';
+  const course=courses.find(c=>c.id===R.courseId);
+  let html='';
+  Object.entries(R.extras).forEach(([hi,type])=>{
+    const holeNum=parseInt(hi)+1;
+    const label=type==='ntp'?'🎯 Nearest the Pin':'💪 Longest Drive';
+    const winner=R.extraWinners&&R.extraWinners[hi];
+    html+='<div style="padding:8px 0;border-bottom:1px solid #f0f0f0">';
+    html+='<div style="font-weight:600;font-size:13px;margin-bottom:6px">'+label+' – Hole '+holeNum+'</div>';
+    html+='<div style="display:flex;gap:6px;flex-wrap:wrap">';
+    R.players.forEach((p,pi)=>{
+      const active=winner===pi;
+      html+='<button onclick="setExtraWinner('+hi+','+pi+')" style="padding:5px 12px;border:1.5px solid '+(active?'var(--gd)':'#ddd')+';border-radius:20px;background:'+(active?'var(--gp)':'white')+';font-size:12px;font-weight:'+(active?'700':'400')+';cursor:pointer;color:var(--text)">'+p.name+(active?' ✓':'')+'</button>';
+    });
+    html+='<button onclick="setExtraWinner('+hi+',-1)" style="padding:5px 12px;border:1.5px solid #ddd;border-radius:20px;background:white;font-size:12px;cursor:pointer;color:var(--muted)">– Geen</button>';
+    html+='</div></div>';
+  });
+  list.innerHTML=html||'<div class="alert alert-i">Geen extra wedstrijdjes ingesteld.</div>';
+}
+
+function setExtraWinner(hi,pi){
+  if(!R.extraWinners) R.extraWinners={};
+  if(pi===-1) delete R.extraWinners[hi]; else R.extraWinners[hi]=pi;
+  renderExtrasWinners();
 }
 
 function backToSetup(){
@@ -1535,7 +1624,7 @@ function confirmEnd(){
 }
 
 function launchConfetti(){
-  const emojis = ['⛳','🏌️','🥇','✨','⭐','🌟'];
+  const emojis = ['⚪️','🟡','🟠','🔴','⚫️'];
   for(let i=0;i<60;i++){
     setTimeout(()=>{
       const el = document.createElement('div');
@@ -1620,11 +1709,22 @@ function renderSummary(){
     <div class="sum-row"><span style="color:var(--muted)">Format</span><strong>${f}</strong></div>
     <div class="sum-row"><span style="color:var(--muted)">Datum</span><strong>${R.date}</strong></div>
   </div>`;
+  // Extras summary
+  if(R.extras && Object.keys(R.extras).length){
+    html+='<div class="card"><div class="ctitle">🎯 Extra wedstrijdjes</div>';
+    Object.entries(R.extras).forEach(([hi,type])=>{
+      const holeNum=parseInt(hi)+1;
+      const label=type==='ntp'?'🎯 Nearest the Pin':'💪 Longest Drive';
+      const winner=R.extraWinners&&R.extraWinners[hi]!==undefined?R.players[R.extraWinners[hi]]?.name:'–';
+      html+='<div class="sum-row"><span>'+label+' hole '+holeNum+'</span><strong>'+winner+'</strong></div>';
+    });
+    html+='</div>';
+  }
   document.getElementById('sum-content').innerHTML=html;
 }
 
 function newRound(){
-  R=null;selCourseId=null;fmt='stableford';
+  R=null;selCourseId=null;fmt='stableford';extras={};
   setupPlayers=[{name:'',hcpIdx:'',gender:'m',teeColor:'',holes18:true},{name:'',hcpIdx:'',gender:'m',teeColor:'',holes18:true}];
   go('s-home');
 }
