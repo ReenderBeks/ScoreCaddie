@@ -43,6 +43,12 @@
   };
 
   window.fbShareCourse = async function(courseData, sharedBy){
+    // Check if course with same name already exists
+    const existing = await fbDb.collection('courses').where('name','==',courseData.name).get();
+    if(!existing.empty){
+      console.log('Course already exists in Firebase:', courseData.name);
+      return {alreadyExists: true};
+    }
     return fbDb.collection('courses').add({
       ...courseData,
       sharedBy: sharedBy,
@@ -325,7 +331,9 @@ table.sc tr.tot td.lbl{background:var(--gp)!important;}
   <div class="card">
     <div class="ctitle">⛳ Ronde instellen</div>
     <label>Selecteer baan</label>
-    <div id="course-sel"></div>
+    <select id="course-sel" onchange="selCourse(parseInt(this.value))" style="width:100%;padding:9px 12px;border:1.5px solid #ddd;border-radius:7px;font-size:14px;background:var(--cream)">
+      <option value="">-- Kies een baan --</option>
+    </select>
     <div id="num-players-section" style="display:none">
     <label style="margin-top:12px">Aantal spelers</label>
     <div style="display:flex;align-items:center;gap:10px;margin-top:4px">
@@ -346,6 +354,11 @@ table.sc tr.tot td.lbl{background:var(--gp)!important;}
     <div class="ctitle">👥 Spelers</div>
     <div id="players-list"></div>
     <!-- spelers via +/- knoppen boven -->
+  </div>
+  <div id="extras-card" class="card" style="display:none">
+    <div class="ctitle">🎯 Extra wedstrijdjes</div>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:8px">Optioneel — selecteer holes voor Nearest the Pin en Longest Drive.</p>
+    <div id="extras-list"></div>
   </div>
   <button id="start-btn" class="btn btn-p" onclick="startRound()" style="display:none">⛳ Ronde beginnen</button>
 </div>
@@ -736,11 +749,12 @@ async function shareAllCourses(){
   for(const c of all){
     try {
       const {id, ...data} = c;
-      await window.fbShareCourse(data, name);
-      uploaded++;
+      const result = await window.fbShareCourse(data, name);
+      if(result && result.alreadyExists) skipped++;
+      else uploaded++;
     } catch(e){ skipped++; console.log('Skip:', e.message); }
   }
-  alert(uploaded + ' banen geüpload! ✅' + (skipped?' ('+skipped+' overgeslagen)':''));
+  alert(uploaded + ' banen geüpload! ✅' + (skipped?' ('+skipped+' stonden al in Firebase en zijn overgeslagen)':''));
 }
 
 async function shareCourse(idx){
@@ -750,8 +764,12 @@ async function shareCourse(idx){
   if(!name) return;
   try {
     const {id, ...courseData} = c;
-    await window.fbShareCourse(courseData, name);
-    alert(c.name + ' gedeeld! ✅');
+    const result = await window.fbShareCourse(courseData, name);
+    if(result && result.alreadyExists){
+      alert(c.name + ' staat al in Gedeelde banen. Niet opnieuw geüpload.');
+    } else {
+      alert(c.name + ' gedeeld! ✅');
+    }
     showCommunity();
   } catch(e) {
     alert('Fout bij delen: ' + e.message);
@@ -1013,20 +1031,19 @@ function renderSetup(){
   const ec2=document.getElementById('extras-card');
   if(ec2) ec2.style.display=show?'block':'none';
   const el=document.getElementById('course-sel');
-  if(!courses.length){
-    el.innerHTML='<div class="alert alert-i">Geen banen. <span style="color:var(--gd);font-weight:700;cursor:pointer" onclick="go(\'s-courses\')">Voeg baan toe →</span></div>';
-  } else {
-    el.innerHTML=courses.map(c=>`
-      <div class="ci ${selCourseId===c.id?'sel':''}" onclick="selCourse(${c.id})" style="cursor:pointer">
-        <div><div class="ci-name">${c.name}</div>
-        <div class="ci-meta">${c.holes} holes · ${c.tees.map(t=>`<span class="tee-chip" style="background:${teeHex(t.color)}"></span>${teeName(t.color)}`).join(' ')}</div></div>
-        ${selCourseId===c.id?'<span style="color:var(--gd);font-size:16px">✓</span>':''}
-      </div>`).join('');
+  if(el){
+    if(!courses.length){
+      el.innerHTML='<option value="">Geen banen — voeg er eerst een toe</option>';
+    } else {
+      el.innerHTML='<option value="">-- Kies een baan --</option>'
+        + courses.map(c=>`<option value="${c.id}" ${selCourseId===c.id?'selected':''}>${c.name} (${c.holes} holes)</option>`).join('');
+    }
   }
   renderSetupPlayers();
 }
 
 function selCourse(id){
+  id=parseInt(id)||id;
   selCourseId=id;
   renderSetup();
   // Show player section now that a course is chosen
