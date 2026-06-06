@@ -695,8 +695,8 @@ async function shareAllCourses(){
   const name = prompt('Jouw naam (wordt zichtbaar bij alle banen):', 'ScoreCaddie');
   if(!name) return;
   let uploaded = 0, skipped = 0;
-  const presets = window._getPresets ? window._getPresets() : [];
-  const all = [...presets, ...courses];
+  // Only upload locally saved courses (not presets, avoids duplicates)
+  const all = courses;
   for(const c of all){
     try {
       const {id, ...data} = c;
