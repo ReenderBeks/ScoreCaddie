@@ -9,10 +9,9 @@
 <meta name="theme-color" content="#1a3a2a">
 <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a3a2a'/><text y='.9em' font-size='75' x='50%' dominant-baseline='middle' text-anchor='middle'>⛳</text></svg>">
 <title>ScoreCaddie</title>
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getFirestore, collection, addDoc, getDocs, query, orderBy, where } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script>
   const firebaseConfig = {
     apiKey: "AIzaSyD_3v3TZ0Fo6Y7nwENAUjIyxyrp_UgP94g",
     authDomain: "scorecaddie-74fd6.firebaseapp.com",
@@ -21,40 +20,37 @@
     messagingSenderId: "303213897206",
     appId: "1:303213897206:web:af70908946f606ef6313d7"
   };
-
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
-
-  // Expose to global scope
-  window.fbDb = db;
-  window.fbCollection = collection;
-  window.fbAddDoc = addDoc;
-  window.fbGetDocs = getDocs;
-  window.fbQuery = query;
-  window.fbOrderBy = orderBy;
-  window.fbWhere = where;
+  firebase.initializeApp(firebaseConfig);
+  const fbDb = firebase.firestore();
+  window.fbDb = fbDb;
   window.fbReady = true;
 
-  // Signal that Firebase is ready
-  window.dispatchEvent(new Event('firebase-ready'));
+  window.fbAddDoc = function(col, data){ return col.add(data); };
+  window.fbGetDocs = function(col){ return col.get(); };
+  window.fbCollection = function(db, name){ return db.collection(name); };
+  window.fbWhere = function(f,o,v){ return [f,o,v]; };
 
-  // Upload preset courses to Firebase if not done yet
-  async function uploadPresets(){
-    if(localStorage.getItem('sc-presets-uploaded')) return;
-    try {
-      const snap = await getDocs(collection(db, 'courses'));
-      if(snap.size > 0){ localStorage.setItem('sc-presets-uploaded','1'); return; }
-      // Upload all preset courses
-      const presets = window._getPresets ? window._getPresets() : [];
-      for(const c of presets){
-        const {id, ...data} = c;
-        await addDoc(collection(db, 'courses'), {...data, sharedBy:'ScoreCaddie', sharedAt: new Date().toISOString()});
+  window.fbSearchCourses = async function(query){
+    const snap = await fbDb.collection('courses').get();
+    const results = [];
+    snap.forEach(doc => {
+      const d = doc.data();
+      if(d.name && d.name.toLowerCase().includes(query.toLowerCase())){
+        results.push({...d, _docId: doc.id});
       }
-      localStorage.setItem('sc-presets-uploaded','1');
-      console.log('Presets uploaded to Firebase');
-    } catch(e){ console.log('Preset upload skipped:', e.message); }
-  }
-  uploadPresets();
+    });
+    return results;
+  };
+
+  window.fbShareCourse = async function(courseData, sharedBy){
+    return fbDb.collection('courses').add({
+      ...courseData,
+      sharedBy: sharedBy,
+      sharedAt: new Date().toISOString()
+    });
+  };
+
+  console.log('Firebase ready');
 </script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap');
@@ -232,8 +228,9 @@ table.sc tr.tot td.lbl{background:var(--gp)!important;}
     <hr style="border:none;border-top:1px solid #eee;margin:12px 0">
     <div style="font-size:12px;font-weight:600;color:var(--gd);margin-bottom:6px">📤 Jouw baan delen</div>
     <p style="font-size:11px;color:var(--muted);margin-bottom:6px">Deel een van jouw opgeslagen banen zodat anderen hem kunnen laden.</p>
+    <button class="btn btn-p btn-sm" onclick="shareAllCourses()" style="margin-bottom:8px">⬆️ Upload alle banen naar Firebase</button>
     <div id="share-course-list"></div>
-    <button class="btn btn-s" onclick="document.getElementById('community-card').style.display='none'" style="margin-top:8px">Sluiten</button>
+    <button class="btn btn-s" onclick="document.getElementById('gedeeld-card').style.display='none'" style="margin-top:8px">Sluiten</button>
   </div>
   <div id="import-card" class="card" style="display:none">
     <div class="ctitle">📥 Importeer</div>
@@ -661,7 +658,7 @@ function addPreset(i){
 }
 
 function showCommunity(){
-  const _cc=document.getElementById('community-card'); if(_cc) _cc.style.display='block';
+  const _cc=document.getElementById('gedeeld-card'); if(_cc) _cc.style.display='block';
   // Populate share list
   const sl = document.getElementById('share-course-list');
   if(!courses.length){ sl.innerHTML='<div class="alert alert-i">Geen banen opgeslagen.</div>'; return; }
@@ -673,23 +670,18 @@ function showCommunity(){
 }
 
 async function searchGedeeld(){
-  const q = document.getElementById('gedeeld-search').value.trim().toLowerCase();
+  const q = document.getElementById('gedeeld-search').value.trim();
   const el = document.getElementById('gedeeld-results');
   if(!q){ el.innerHTML='<div class="alert alert-i">Vul een zoekterm in.</div>'; return; }
-  if(!window.fbReady){ el.innerHTML='<div class="alert alert-i">Verbinding maken met database...</div>'; return; }
+  if(!window.fbReady){ el.innerHTML='<div class="alert alert-i">Firebase niet beschikbaar.</div>'; return; }
   el.innerHTML='<div style="font-size:12px;color:var(--muted)">Zoeken...</div>';
   try {
-    const snap = await window.fbGetDocs(window.fbCollection(window.fbDb, 'courses'));
-    const results = [];
-    snap.forEach(doc => {
-      const d = doc.data();
-      if(d.name && d.name.toLowerCase().includes(q)) results.push({id:doc.id, ...d});
-    });
+    const results = await window.fbSearchCourses(q);
     if(!results.length){ el.innerHTML='<div class="alert alert-i">Geen banen gevonden voor "'+q+'".</div>'; return; }
     window._gedeeldResults = results;
-    el.innerHTML = results.map(c => '<div class="ci" style="cursor:default">'
+    el.innerHTML = results.map((c,i) => '<div class="ci" style="cursor:default">'
       + '<div><div class="ci-name">'+c.name+'</div>'
-      + '<div class="ci-meta">'+c.holes+' holes · '+(c.tees||[]).length+' tee-kleuren · gedeeld door '+( c.sharedBy||'onbekend')+'</div></div>'
+      + '<div class="ci-meta">'+c.holes+' holes · '+(c.tees||[]).length+' tee-kleuren · gedeeld door '+(c.sharedBy||'onbekend')+'</div></div>'
       + '<button class="btn btn-p btn-sm" onclick="importGedeeld('+i+')" style="margin:0">+ Laden</button>'
       + '</div>').join('');
   } catch(e) {
@@ -697,19 +689,32 @@ async function searchGedeeld(){
   }
 }
 
+async function shareAllCourses(){
+  if(!window.fbReady){ alert('Firebase niet beschikbaar.'); return; }
+  const name = prompt('Jouw naam (wordt zichtbaar bij alle banen):', 'ScoreCaddie');
+  if(!name) return;
+  let uploaded = 0, skipped = 0;
+  const presets = window._getPresets ? window._getPresets() : [];
+  const all = [...presets, ...courses];
+  for(const c of all){
+    try {
+      const {id, ...data} = c;
+      await window.fbShareCourse(data, name);
+      uploaded++;
+    } catch(e){ skipped++; console.log('Skip:', e.message); }
+  }
+  alert(uploaded + ' banen geüpload! ✅' + (skipped?' ('+skipped+' overgeslagen)':''));
+}
+
 async function shareCourse(idx){
-  if(!window.fbReady){ alert('Verbinding met database niet beschikbaar.'); return; }
+  if(!window.fbReady){ alert('Firebase niet beschikbaar.'); return; }
   const c = courses[idx];
-  const name = prompt('Jouw naam (wordt zichtbaar in de gedeeld):', '');
+  const name = prompt('Jouw naam (wordt zichtbaar bij de baan):', '');
   if(!name) return;
   try {
     const {id, ...courseData} = c;
-    await window.fbAddDoc(window.fbCollection(window.fbDb, 'courses'), {
-      ...courseData,
-      sharedBy: name,
-      sharedAt: new Date().toISOString()
-    });
-    alert(c.name + ' gedeeld met de gedeeld! ✅');
+    await window.fbShareCourse(courseData, name);
+    alert(c.name + ' gedeeld! ✅');
     showCommunity();
   } catch(e) {
     alert('Fout bij delen: ' + e.message);
@@ -720,12 +725,13 @@ function importGedeeld(idx){
   try {
     const c = window._gedeeldResults[idx];
     if(!c){ alert('Baan niet gevonden.'); return; }
-    c.id = Date.now();
-    const exists = courses.some(x=>x.name===c.name);
-    if(exists){ if(!confirm(c.name+' staat al in je lijst. Overschrijven?')) return; courses = courses.filter(x=>x.name!==c.name); }
-    courses.push(c);
+    const course = {...c, id: Date.now()};
+    delete course._docId;
+    const exists = courses.some(x=>x.name===course.name);
+    if(exists){ if(!confirm(course.name+' staat al in je lijst. Overschrijven?')) return; courses = courses.filter(x=>x.name!==course.name); }
+    courses.push(course);
     save('gm4-courses', courses);
-    alert(c.name + ' toegevoegd! ✅');
+    alert(course.name + ' toegevoegd! ✅');
   } catch(e) { alert('Fout: '+e.message); }
 }
 
