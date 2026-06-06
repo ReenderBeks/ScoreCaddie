@@ -9,6 +9,35 @@
 <meta name="theme-color" content="#1a3a2a">
 <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a3a2a'/><text y='.9em' font-size='75' x='50%' dominant-baseline='middle' text-anchor='middle'>⛳</text></svg>">
 <title>ScoreCaddie</title>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getFirestore, collection, addDoc, getDocs, query, orderBy, where } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyD_3v3TZ0Fo6Y7nwENAUjIyxyrp_UgP94g",
+    authDomain: "scorecaddie-74fd6.firebaseapp.com",
+    projectId: "scorecaddie-74fd6",
+    storageBucket: "scorecaddie-74fd6.firebasestorage.app",
+    messagingSenderId: "303213897206",
+    appId: "1:303213897206:web:af70908946f606ef6313d7"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  // Expose to global scope
+  window.fbDb = db;
+  window.fbCollection = collection;
+  window.fbAddDoc = addDoc;
+  window.fbGetDocs = getDocs;
+  window.fbQuery = query;
+  window.fbOrderBy = orderBy;
+  window.fbWhere = where;
+  window.fbReady = true;
+
+  // Signal that Firebase is ready
+  window.dispatchEvent(new Event('firebase-ready'));
+</script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap');
 :root {
@@ -164,6 +193,7 @@ table.sc tr.tot td.lbl{background:var(--gp)!important;}
     <button class="btn btn-s" onclick="exportData()" style="font-size:12px;padding:8px">📤 Exporteer baandata</button>
     <button class="btn btn-s" onclick="showImport()" style="font-size:12px;padding:8px;margin-top:6px">📥 Importeer baandata</button>
     <button class="btn btn-s" onclick="showPresets()" style="font-size:12px;padding:8px;margin-top:6px">⛳ Baan toevoegen uit bibliotheek</button>
+    <button class="btn btn-s" onclick="showCommunity()" style="font-size:12px;padding:8px;margin-top:6px">🌍 Community banen zoeken</button>
   </div>
   <div id="export-card" class="card" style="display:none">
     <div class="ctitle">📤 Exporteer</div>
@@ -177,6 +207,20 @@ table.sc tr.tot td.lbl{background:var(--gp)!important;}
     <p style="font-size:12px;color:var(--muted);margin-bottom:8px">Selecteer een baan om direct toe te voegen.</p>
     <div id="presets-list"></div>
     <button class="btn btn-s" onclick="document.getElementById('presets-card').style.display='none'" style="margin-top:8px">Sluiten</button>
+  </div>
+  <div id="community-card" class="card" style="display:none">
+    <div class="ctitle">🌍 Community baanbibliotheek</div>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:8px">Zoek een baan of deel jouw baan met andere gebruikers.</p>
+    <div style="display:flex;gap:6px;margin-bottom:8px">
+      <input type="text" id="community-search" placeholder="Zoek op baannaam..." style="flex:1;padding:8px 10px;border:1.5px solid #ddd;border-radius:7px;font-size:13px">
+      <button class="btn btn-p btn-sm" onclick="searchCommunity()" style="margin:0;white-space:nowrap">🔍 Zoek</button>
+    </div>
+    <div id="community-results"></div>
+    <hr style="border:none;border-top:1px solid #eee;margin:12px 0">
+    <div style="font-size:12px;font-weight:600;color:var(--gd);margin-bottom:6px">Eigen baan delen</div>
+    <p style="font-size:11px;color:var(--muted);margin-bottom:6px">Deel een van jouw opgeslagen banen met de community.</p>
+    <div id="share-course-list"></div>
+    <button class="btn btn-s" onclick="document.getElementById('community-card').style.display='none'" style="margin-top:8px">Sluiten</button>
   </div>
   <div id="import-card" class="card" style="display:none">
     <div class="ctitle">📥 Importeer</div>
@@ -594,6 +638,78 @@ function addPreset(i){
   save('gm4-courses',courses);
   alert(c.name + ' toegevoegd! ✅');
   showPresets();
+}
+
+function showCommunity(){
+  document.getElementById('community-card').style.display='block';
+  document.getElementById('presets-card').style.display='none';
+  document.getElementById('import-card').style.display='none';
+  document.getElementById('export-card').style.display='none';
+  // Populate share list
+  const sl = document.getElementById('share-course-list');
+  if(!courses.length){ sl.innerHTML='<div class="alert alert-i">Geen banen opgeslagen.</div>'; return; }
+  sl.innerHTML = courses.map((c,i) => '<div class="ci" style="cursor:default">'
+    + '<div><div class="ci-name">'+c.name+'</div>'
+    + '<div class="ci-meta">'+c.holes+' holes · '+c.tees.length+' tee-kleuren</div></div>'
+    + '<button class="btn btn-p btn-sm" onclick="shareCourse('+i+')" style="margin:0">Delen</button>'
+    + '</div>').join('');
+}
+
+async function searchCommunity(){
+  const q = document.getElementById('community-search').value.trim().toLowerCase();
+  const el = document.getElementById('community-results');
+  if(!q){ el.innerHTML='<div class="alert alert-i">Vul een zoekterm in.</div>'; return; }
+  if(!window.fbReady){ el.innerHTML='<div class="alert alert-i">Verbinding maken met database...</div>'; return; }
+  el.innerHTML='<div style="font-size:12px;color:var(--muted)">Zoeken...</div>';
+  try {
+    const snap = await window.fbGetDocs(window.fbCollection(window.fbDb, 'courses'));
+    const results = [];
+    snap.forEach(doc => {
+      const d = doc.data();
+      if(d.name && d.name.toLowerCase().includes(q)) results.push({id:doc.id, ...d});
+    });
+    if(!results.length){ el.innerHTML='<div class="alert alert-i">Geen banen gevonden voor "'+q+'".</div>'; return; }
+    window._communityResults = results;
+    el.innerHTML = results.map(c => '<div class="ci" style="cursor:default">'
+      + '<div><div class="ci-name">'+c.name+'</div>'
+      + '<div class="ci-meta">'+c.holes+' holes · '+(c.tees||[]).length+' tee-kleuren · gedeeld door '+( c.sharedBy||'onbekend')+'</div></div>'
+      + '<button class="btn btn-p btn-sm" onclick="importCommunity('+i+')" style="margin:0">+ Laden</button>'
+      + '</div>').join('');
+  } catch(e) {
+    el.innerHTML='<div class="alert alert-i">Fout: '+e.message+'</div>';
+  }
+}
+
+async function shareCourse(idx){
+  if(!window.fbReady){ alert('Verbinding met database niet beschikbaar.'); return; }
+  const c = courses[idx];
+  const name = prompt('Jouw naam (wordt zichtbaar in de community):', '');
+  if(!name) return;
+  try {
+    await window.fbAddDoc(window.fbCollection(window.fbDb, 'courses'), {
+      ...c,
+      sharedBy: name,
+      sharedAt: new Date().toISOString(),
+      id: undefined
+    });
+    alert(c.name + ' gedeeld met de community! ✅');
+    showCommunity();
+  } catch(e) {
+    alert('Fout bij delen: ' + e.message);
+  }
+}
+
+function importCommunity(idx){
+  try {
+    const c = window._communityResults[idx];
+    if(!c){ alert('Baan niet gevonden.'); return; }
+    c.id = Date.now();
+    const exists = courses.some(x=>x.name===c.name);
+    if(exists){ if(!confirm(c.name+' staat al in je lijst. Overschrijven?')) return; courses = courses.filter(x=>x.name!==c.name); }
+    courses.push(c);
+    save('gm4-courses', courses);
+    alert(c.name + ' toegevoegd! ✅');
+  } catch(e) { alert('Fout: '+e.message); }
 }
 
 function exportData(){
