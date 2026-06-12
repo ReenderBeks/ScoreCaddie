@@ -1574,8 +1574,12 @@ function startRound(){
     R.scores[pi]={};
     for(let hi=0;hi<course.holes;hi++) R.scores[pi][hi]=0;
   }
-  buildScorecard();
-  go('s-scorecard');
+  try {
+    buildScorecard();
+    go('s-scorecard');
+  } catch(e) {
+    alert('Fout bij starten: ' + e.message + ' (regel: ' + (e.lineNumber||'?') + ')');
+  }
 }
 
 // ---- SCORECARD - build once, update cells in place ----
@@ -1741,15 +1745,7 @@ function refreshCell(pi,hi){
     const pts=sfPts(score,hole.par,str);
     ptsEl.innerHTML=pts!==null?`<span class="sf${Math.min(pts,4)}">${pts}</span>`:'–';
   } else if(f==='bbwb'){
-    const course3=courses.find(c=>c.id===R.courseId);
-    let totA=0,totB=0;
-    for(let hi=0;hi<course3.holes;hi++){const res=calcBBWB(hi);if(res){totA+=res.teamA;totB+=res.teamB;}}
-    const winnerTeam=totA>totB?'Team A ('+rp[0].name+' & '+rp[1].name+')':totB>totA?'Team B ('+rp[2].name+' & '+rp[3].name+')':'Gelijkspel!';
-    html+=`<div class="win-banner"><h2>🏆 ${winnerTeam}</h2><p>Team A: ${totA} ptn · Team B: ${totB} ptn</p></div>`;
-    html+=`<div class="card"><div class="ctitle">🏅 Eindrangschikking</div>
-      <div class="sum-row"><div>🥇 <strong>${totA>=totB?rp[0].name+' & '+rp[1].name:rp[2].name+' & '+rp[3].name}</strong></div><span class="pill pg">${Math.max(totA,totB)} ptn</span></div>
-      <div class="sum-row"><div>🥈 <strong>${totA>=totB?rp[2].name+' & '+rp[3].name:rp[0].name+' & '+rp[1].name}</strong></div><span class="pill pg">${Math.min(totA,totB)} ptn</span></div>
-    </div>`;
+    // BBWB pts handled by updateBBWBCells
   } else if(f==='strokeplay'){
     ptsEl.innerHTML=score>0?(score-str):'–';
   }
