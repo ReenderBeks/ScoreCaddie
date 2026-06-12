@@ -369,6 +369,7 @@ Gebruik voor color: white, yellow, blue, red, orange, black of gold. Voeg alle t
       <div class="fmt" id="fmt-matchplay" onclick="setFmt('matchplay')"><div class="fmt-t">Matchplay</div><div class="fmt-d">1 vs 1</div></div>
       <div class="fmt" id="fmt-strokeplay" onclick="setFmt('strokeplay')"><div class="fmt-t">Strokeplay</div><div class="fmt-d">Totaal slagen</div></div>
       <div class="fmt" id="fmt-sixpoints" onclick="setFmt('sixpoints')"><div class="fmt-t">6-punten</div><div class="fmt-d">3 spelers</div></div>
+      <div class="fmt" id="fmt-bbwb" onclick="setFmt('bbwb')"><div class="fmt-t">Best/Worst</div><div class="fmt-d">2 teams van 2</div></div>
     </div>
   </div>
   <div id="players-card" class="card" style="display:none">
@@ -388,6 +389,7 @@ Gebruik voor color: white, yellow, blue, red, orange, black of gold. Voeg alle t
 <div id="s-scorecard" class="scr">
   <div class="back" onclick="backToSetup()">← Terug naar instellen</div>
   <div id="mb" style="display:none" class="mb"></div>
+  <div id="bbwb-banner" style="display:none" class="mb"></div>
   <div class="card" style="padding:10px 6px">
     <div class="sc-wrap"><table class="sc" id="sc-table"></table></div>
   </div>
@@ -696,6 +698,122 @@ const PRESET_COURSES = [
       {par:3,si:18},{par:5,si:12},{par:3,si:16},{par:4,si:2},
       {par:3,si:17},{par:4,si:11},{par:3,si:15},{par:5,si:5},{par:4,si:9},
       {par:5,si:1},{par:3,si:13},{par:4,si:7},{par:5,si:3}
+    ]
+  },
+  {
+    id: 900015,
+    name: "Wassenaarse Golf Groendael – 9 holes",
+    holes: 9,
+    tees: [
+      {color:"yellow", crM:35.6, srM:140, parM:35, crF:38.4, srF:157, parF:35},
+      {color:"blue",   crM:34.7, srM:137, parM:35, crF:37.3, srF:153, parF:35},
+      {color:"red",    crM:33.3, srM:126, parM:35, crF:36.3, srF:138, parF:35}
+    ],
+    siData: [
+      {par:4,si:13},{par:3,si:15},{par:4,si:7},{par:5,si:11},{par:4,si:3},
+      {par:4,si:1},{par:3,si:17},{par:4,si:5},{par:4,si:9}
+    ]
+  },
+  {
+    id: 900016,
+    name: "Kennemer A-course (Van Hengel) – 9 holes",
+    holes: 9,
+    tees: [
+      {color:"white",  crM:37.8, srM:138, parM:36, crF:0,    srF:0,   parF:0},
+      {color:"yellow", crM:36.2, srM:138, parM:36, crF:39.6, srF:148, parF:36},
+      {color:"blue",   crM:35.6, srM:132, parM:36, crF:38.7, srF:137, parF:36},
+      {color:"red",    crM:34.6, srM:124, parM:36, crF:37.2, srF:132, parF:36},
+      {color:"orange", crM:33.6, srM:109, parM:36, crF:35.4, srF:121, parF:36}
+    ],
+    siData: [
+      {par:4,si:5},{par:5,si:11},{par:3,si:17},{par:4,si:13},{par:4,si:7},
+      {par:4,si:1},{par:4,si:9},{par:3,si:15},{par:4,si:3}
+    ]
+  },
+  {
+    id: 900017,
+    name: "Kennemer B-course (Pennink) – 9 holes",
+    holes: 9,
+    tees: [
+      {color:"white",  crM:36.3, srM:136, parM:36, crF:0,    srF:0,   parF:0},
+      {color:"yellow", crM:35.6, srM:130, parM:36, crF:38.5, srF:146, parF:36},
+      {color:"blue",   crM:34.6, srM:125, parM:36, crF:37.6, srF:139, parF:36},
+      {color:"red",    crM:33.6, srM:118, parM:36, crF:36.1, srF:135, parF:36},
+      {color:"orange", crM:32.2, srM:116, parM:36, crF:34.7, srF:127, parF:36}
+    ],
+    siData: [
+      {par:4,si:7},{par:3,si:17},{par:5,si:1},{par:4,si:11},{par:4,si:5},
+      {par:5,si:15},{par:4,si:9},{par:3,si:13},{par:4,si:3}
+    ]
+  },
+  {
+    id: 900018,
+    name: "Kennemer A-B (Van Hengel + Pennink) – 18 holes",
+    holes: 18,
+    tees: [
+      {color:"white",  crM:74.1, srM:138, parM:72, crF:0,    srF:0,   parF:0},
+      {color:"yellow", crM:71.8, srM:136, parM:72, crF:78.1, srF:148, parF:72},
+      {color:"blue",   crM:70.2, srM:130, parM:72, crF:76.3, srF:139, parF:72},
+      {color:"red",    crM:68.2, srM:122, parM:72, crF:73.3, srF:135, parF:72},
+      {color:"orange", crM:65.8, srM:113, parM:72, crF:70.1, srF:127, parF:72}
+    ],
+    siData: [
+      {par:4,si:5},{par:5,si:11},{par:3,si:17},{par:4,si:13},{par:4,si:7},
+      {par:4,si:1},{par:4,si:9},{par:3,si:15},{par:4,si:3},
+      {par:4,si:7},{par:3,si:17},{par:5,si:1},{par:4,si:11},{par:4,si:5},
+      {par:5,si:15},{par:4,si:9},{par:3,si:13},{par:4,si:3}
+    ]
+  },
+  {
+    id: 900019,
+    name: "Kennemer C-course (Colt) – 9 holes",
+    holes: 9,
+    tees: [
+      {color:"white",  crM:36.8, srM:138, parM:36, crF:0,    srF:0,   parF:0},
+      {color:"yellow", crM:35.6, srM:132, parM:36, crF:38.8, srF:150, parF:36},
+      {color:"blue",   crM:35.0, srM:132, parM:36, crF:38.0, srF:148, parF:36},
+      {color:"red",    crM:33.7, srM:126, parM:36, crF:36.6, srF:131, parF:36},
+      {color:"orange", crM:31.9, srM:119, parM:36, crF:34.7, srF:119, parF:36}
+    ],
+    siData: [
+      {par:4,si:14},{par:4,si:4},{par:5,si:10},{par:4,si:8},{par:4,si:2},
+      {par:3,si:16},{par:5,si:18},{par:3,si:12},{par:4,si:6}
+    ]
+  },
+  {
+    id: 900020,
+    name: "Kennemer A-C (Van Hengel + Colt) – 18 holes",
+    holes: 18,
+    tees: [
+      {color:"white",  crM:74.6, srM:138, parM:72, crF:0,    srF:0,   parF:0},
+      {color:"yellow", crM:71.8, srM:136, parM:72, crF:78.4, srF:150, parF:72},
+      {color:"blue",   crM:70.6, srM:132, parM:72, crF:76.7, srF:148, parF:72},
+      {color:"red",    crM:68.3, srM:126, parM:72, crF:73.8, srF:132, parF:72},
+      {color:"orange", crM:65.5, srM:114, parM:72, crF:70.1, srF:121, parF:72}
+    ],
+    siData: [
+      {par:4,si:5},{par:5,si:11},{par:3,si:17},{par:4,si:13},{par:4,si:7},
+      {par:4,si:1},{par:4,si:9},{par:3,si:15},{par:4,si:3},
+      {par:4,si:14},{par:4,si:4},{par:5,si:10},{par:4,si:8},{par:4,si:2},
+      {par:3,si:16},{par:5,si:18},{par:3,si:12},{par:4,si:6}
+    ]
+  },
+  {
+    id: 900021,
+    name: "Kennemer B-C (Pennink + Colt) – 18 holes",
+    holes: 18,
+    tees: [
+      {color:"white",  crM:73.1, srM:137, parM:72, crF:0,    srF:0,   parF:0},
+      {color:"yellow", crM:71.2, srM:131, parM:72, crF:77.3, srF:148, parF:72},
+      {color:"blue",   crM:69.6, srM:129, parM:72, crF:75.6, srF:144, parF:72},
+      {color:"red",    crM:67.3, srM:122, parM:72, crF:72.7, srF:133, parF:72},
+      {color:"orange", crM:64.1, srM:118, parM:72, crF:69.4, srF:123, parF:72}
+    ],
+    siData: [
+      {par:4,si:7},{par:3,si:17},{par:5,si:1},{par:4,si:11},{par:4,si:5},
+      {par:5,si:15},{par:4,si:9},{par:3,si:13},{par:4,si:3},
+      {par:4,si:14},{par:4,si:4},{par:5,si:10},{par:4,si:8},{par:4,si:2},
+      {par:3,si:16},{par:5,si:18},{par:3,si:12},{par:4,si:6}
     ]
   }
 ];
@@ -1180,9 +1298,10 @@ function changeNumPlayers(delta){
 
 function setFmt(f){
   fmt=f;
-  ['stableford','matchplay','strokeplay','sixpoints'].forEach(x=>document.getElementById('fmt-'+x)?.classList.toggle('on',x===f));
-  if(f==='matchplay'&&setupPlayers.length>2) setupPlayers=setupPlayers.slice(0,2);
-  if(f==='sixpoints'&&setupPlayers.length>3) setupPlayers=setupPlayers.slice(0,3);
+  ['stableford','matchplay','strokeplay','sixpoints','bbwb'].forEach(x=>document.getElementById('fmt-'+x)?.classList.toggle('on',x===f));
+  if(f==='matchplay'){numPlayers=2;setupPlayers=setupPlayers.slice(0,2);}
+  if(f==='sixpoints'){numPlayers=3;setupPlayers=setupPlayers.slice(0,3);}
+  if(f==='bbwb'){numPlayers=4;while(setupPlayers.length<4)setupPlayers.push({name:'',hcpIdx:'',gender:'m',teeColor:'',holes18:true});setupPlayers=setupPlayers.slice(0,4);}
   renderSetupPlayers();
 }
 
@@ -1254,7 +1373,7 @@ function renderSetupPlayers(){
   document.getElementById('players-list').innerHTML=setupPlayers.map((p,i)=>`
     <div class="pr">
       <!-- no manual remove, use +/- buttons -->
-      <div class="pr-hdr">Speler ${i+1}</div>
+      <div class="pr-hdr">${fmt==='bbwb'?(i<2?'Team A – Speler '+(i+1):'Team B – Speler '+(i-1)):'Speler '+(i+1)}</div>
       <div class="pg2">
         <div><label>Naam${i===0?' <span style="font-size:9px;color:var(--muted)">(onthouden)</span>':''}</label><input type="text" value="${p.name}" placeholder="Naam" oninput="setupPlayers[${i}].name=this.value${i===0?';savePlayer1(setupPlayers[0])':''}"></div>
         <div><label>Handicap Index</label>
@@ -1439,6 +1558,28 @@ function buildScorecard(){
 
 
     // Points/result row label depends on format
+    if(f==='bbwb'){
+      // Stableford points row per player
+      html+=`<tr class="meta"><td class="lbl" style="font-size:10px;font-weight:400">${rp[pi].name}<br><span style="color:var(--muted)">Stbfd ptn</span></td>`;
+      for(let hi=0;hi<n;hi++) html+=`<td id="pts-${pi}-${hi}">–</td>`;
+      // Total pts
+      let totPts=0;
+      for(let hi=0;hi<n;hi++){
+        const s=R.scores[pi][hi]||0,str=getStrokes(pi,hi),h=course.siData[hi];
+        totPts+=sfPts(s,h.par,str)||0;
+      }
+      html+=`<td id="tot-pts-${pi}" style="font-weight:700;color:var(--gd)">${totPts}</td></tr>`;
+    }
+    if(f==='bbwb'&&pi===rp.length-1){
+      // BBWB hole result row
+      html+=`<tr class="meta"><td class="lbl" style="font-size:10px;font-weight:400">Hole uitslag<br><span style="color:var(--muted)">Best/Worst</span></td>`;
+      for(let hi=0;hi<n;hi++) html+=`<td id="bbwb-${hi}">–</td>`;
+      html+=`<td id="bbwb-tot"></td></tr>`;
+      // Cumulative stand row
+      html+=`<tr class="meta"><td class="lbl" style="font-size:10px;font-weight:400">Stand<br><span style="color:var(--muted)">Cumulatief</span></td>`;
+      for(let hi=0;hi<n;hi++) html+=`<td id="bbwb-cum-${hi}" style="font-size:10px">–</td>`;
+      html+=`<td></td></tr>`;
+    }
     if(f==='stableford'||f==='sixpoints'){
       const lbl=f==='stableford'?'Punten':'6-ptn';
       html+=`<tr class="meta"><td class="lbl" style="font-size:10px;font-weight:400">${p.name}<br><span style="color:var(--muted)">${lbl}</span></td>`;
@@ -1496,6 +1637,7 @@ function scoreChanged(pi,hi,val){
     updateMatchBanner();
   }
   if(R.fmt==='sixpoints') refreshAllPts6();
+  if(R.fmt==='bbwb') updateBBWBCells();
   updateTotals();
 }
 
@@ -1529,6 +1671,16 @@ function refreshCell(pi,hi){
   if(f==='stableford'){
     const pts=sfPts(score,hole.par,str);
     ptsEl.innerHTML=pts!==null?`<span class="sf${Math.min(pts,4)}">${pts}</span>`:'–';
+  } else if(f==='bbwb'){
+    const course3=courses.find(c=>c.id===R.courseId);
+    let totA=0,totB=0;
+    for(let hi=0;hi<course3.holes;hi++){const res=calcBBWB(hi);if(res){totA+=res.teamA;totB+=res.teamB;}}
+    const winnerTeam=totA>totB?'Team A ('+rp[0].name+' & '+rp[1].name+')':totB>totA?'Team B ('+rp[2].name+' & '+rp[3].name+')':'Gelijkspel!';
+    html+=`<div class="win-banner"><h2>🏆 ${winnerTeam}</h2><p>Team A: ${totA} ptn · Team B: ${totB} ptn</p></div>`;
+    html+=`<div class="card"><div class="ctitle">🏅 Eindrangschikking</div>
+      <div class="sum-row"><div>🥇 <strong>${totA>=totB?rp[0].name+' & '+rp[1].name:rp[2].name+' & '+rp[3].name}</strong></div><span class="pill pg">${Math.max(totA,totB)} ptn</span></div>
+      <div class="sum-row"><div>🥈 <strong>${totA>=totB?rp[2].name+' & '+rp[3].name:rp[0].name+' & '+rp[1].name}</strong></div><span class="pill pg">${Math.min(totA,totB)} ptn</span></div>
+    </div>`;
   } else if(f==='strokeplay'){
     ptsEl.innerHTML=score>0?(score-str):'–';
   }
@@ -1684,6 +1836,102 @@ function updateMatchBanner(){
     </div>`;
 }
 
+function calcBBWB(hi){
+  // Returns {teamA: pts, teamB: pts} for a hole
+  if(!R||R.players.length<4) return null;
+  const nets = R.players.map((_,pi)=>{
+    const s=R.scores[pi][hi];
+    if(!s||s<=0) return null;
+    return s - getStrokes(pi,hi);
+  });
+  if(nets.some(x=>x===null)) return null;
+  const [a1,a2,b1,b2] = nets;
+  const bestA=Math.min(a1,a2), worstA=Math.max(a1,a2);
+  const bestB=Math.min(b1,b2), worstB=Math.max(b1,b2);
+  let ptsA=0, ptsB=0;
+  // Best ball: 2 pts
+  if(bestA<bestB){ptsA+=2;}
+  else if(bestB<bestA){ptsB+=2;}
+  else{ptsA+=1;ptsB+=1;} // tie = 1 each
+  // Worst ball: 1 pt
+  if(worstA<worstB){ptsA+=1;}
+  else if(worstB<worstA){ptsB+=1;}
+  // tie = no points
+  return {teamA:ptsA, teamB:ptsB};
+}
+
+function updateBBWBCells(){
+  if(!R||R.fmt!=='bbwb') return;
+  const course=courses.find(c=>c.id===R.courseId);
+  let totA=0,totB=0;
+  for(let hi=0;hi<course.holes;hi++){
+    const el=document.getElementById('bbwb-'+hi);
+    const cumEl=document.getElementById('bbwb-cum-'+hi);
+    const res=calcBBWB(hi);
+    if(!res){
+      if(el) el.innerHTML='–';
+      if(cumEl) cumEl.innerHTML='–';
+      continue;
+    }
+    totA+=res.teamA;totB+=res.teamB;
+    if(el){
+      const aColor=res.teamA>res.teamB?'var(--gl)':res.teamB>res.teamA?'var(--red)':'var(--muted)';
+      el.innerHTML='<span style="font-size:10px;color:var(--gd);font-weight:700">A:'+res.teamA+'</span> <span style="font-size:10px;color:var(--red);font-weight:700">B:'+res.teamB+'</span>';
+    }
+    if(cumEl){
+      const diff=totA-totB;
+      let standTxt='';
+      if(diff===0) standTxt='<span style="color:var(--muted);font-size:10px">A/S</span>';
+      else if(diff>0) standTxt='<span style="color:var(--gl);font-size:10px;font-weight:700">A+'+diff+'</span>';
+      else standTxt='<span style="color:var(--red);font-size:10px;font-weight:700">B+'+Math.abs(diff)+'</span>';
+      cumEl.innerHTML=standTxt;
+    }
+  }
+  const totEl=document.getElementById('bbwb-tot');
+  if(totEl){
+    const diff=totA-totB;
+    const leader=diff>0?'A':diff<0?'B':'A/S';
+    totEl.innerHTML='<span style="font-size:11px;font-weight:700;color:'+(diff>0?'var(--gl)':diff<0?'var(--red)':'var(--muted)')+'">'+
+      (diff===0?'A/S':leader+' +'+Math.abs(diff))+'</span>';
+  }
+  // Update BBWB banner
+  const banner=document.getElementById('bbwb-banner');
+  if(banner){
+    banner.style.display='flex';
+    const teamANames=R.players.slice(0,2).map(p=>p.name).join(' & ');
+    const teamBNames=R.players.slice(2,4).map(p=>p.name).join(' & ');
+    const diff=totA-totB;
+    const status=diff===0?'Gelijk':diff>0?'Team A +'+diff:'Team B +'+Math.abs(diff);
+    banner.innerHTML=
+      '<div class="mb-col"><div style="font-size:11px;color:rgba(255,255,255,.6)">Team A</div>'+
+      '<div style="font-family:serif;font-size:26px;color:var(--gold-l)">'+totA+'</div>'+
+      '<div style="font-size:9px;color:rgba(255,255,255,.4)">'+teamANames+'</div></div>'+
+      '<div style="text-align:center"><div style="font-family:serif;font-size:14px;color:var(--gold-l)">'+status+'</div>'+
+      '<div style="font-size:9px;color:rgba(255,255,255,.4);margin-top:3px">Best Ball Worst Ball</div></div>'+
+      '<div class="mb-col"><div style="font-size:11px;color:rgba(255,255,255,.6)">Team B</div>'+
+      '<div style="font-family:serif;font-size:26px;color:var(--gold-l)">'+totB+'</div>'+
+      '<div style="font-size:9px;color:rgba(255,255,255,.4)">'+teamBNames+'</div></div>';
+  }
+  // Also update stableford pts per player
+  R.players.forEach((_,pi)=>{
+    for(let hi=0;hi<course.holes;hi++){
+      const ptsEl=document.getElementById('pts-'+pi+'-'+hi);
+      if(!ptsEl) continue;
+      const s=R.scores[pi][hi]||0,str=getStrokes(pi,hi),h=course.siData[hi];
+      const pts=sfPts(s,h.par,str);
+      ptsEl.innerHTML=pts!==null?'<span class="sf'+Math.min(pts,4)+'">'+pts+'</span>':'–';
+    }
+    // Update total pts
+    let tot=0;
+    for(let hi=0;hi<course.holes;hi++){
+      const s=R.scores[pi][hi]||0,str=getStrokes(pi,hi),h=course.siData[hi];
+      tot+=sfPts(s,h.par,str)||0;
+    }
+    const totEl2=document.getElementById('tot-pts-'+pi);
+    if(totEl2) totEl2.textContent=tot;
+  });
+}
+
 function updateTotals(){
   if(!R) return;
   const course=courses.find(c=>c.id===R.courseId);
@@ -1707,8 +1955,16 @@ function updateTotals(){
       html+=`<div class="sum-row"><div><strong>${p.name}</strong></div><div><span class="pill py" style="margin-right:4px">${tot||'–'} br</span><span class="pill pg">${tot?tot-p.chcp:'–'} netto</span></div></div>`;
     }
     // matchplay: shown in banner only
+    if(f==='bbwb'&&pi===0){
+      let totA=0,totB=0;
+      const course2=courses.find(c=>c.id===R.courseId);
+      for(let hi=0;hi<course2.holes;hi++){const res=calcBBWB(hi);if(res){totA+=res.teamA;totB+=res.teamB;}}
+      html+=`<div class="sum-row"><div><strong>Team A</strong> <span style="font-size:10px;color:var(--muted)">${rp[0].name} & ${rp[1].name}</span></div><span class="pill pg">${totA} ptn</span></div>`;
+      html+=`<div class="sum-row"><div><strong>Team B</strong> <span style="font-size:10px;color:var(--muted)">${rp[2].name} & ${rp[3].name}</span></div><span class="pill pg">${totB} ptn</span></div>`;
+    }
   });
   document.getElementById('sc-totals').innerHTML=html;
+  updateBBWBCells();
   renderExtrasWinners();
 }
 
