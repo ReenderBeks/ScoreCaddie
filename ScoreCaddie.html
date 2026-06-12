@@ -9,76 +9,63 @@
 <meta name="theme-color" content="#1a3a2a">
 <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a3a2a'/><text y='.9em' font-size='75' x='50%' dominant-baseline='middle' text-anchor='middle'>⛳</text></svg>">
 <title>ScoreCaddie</title>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <script>
-  const firebaseConfig = {
-    apiKey: "AIzaSyD_3v3TZ0Fo6Y7nwENAUjIyxyrp_UgP94g",
-    authDomain: "scorecaddie-74fd6.firebaseapp.com",
-    projectId: "scorecaddie-74fd6",
-    storageBucket: "scorecaddie-74fd6.firebasestorage.app",
-    messagingSenderId: "303213897206",
-    appId: "1:303213897206:web:af70908946f606ef6313d7"
-  };
-  try {
-    firebase.initializeApp(firebaseConfig);
-    const fbDb = firebase.firestore();
-    window.fbDb = fbDb;
-    window.fbReady = true;
-    console.log("Firebase OK");
+  function initFirebase(){
+    const firebaseConfig = {
+      apiKey: "AIzaSyD_3v3TZ0Fo6Y7nwENAUjIyxyrp_UgP94g",
+      authDomain: "scorecaddie-74fd6.firebaseapp.com",
+      projectId: "scorecaddie-74fd6",
+      storageBucket: "scorecaddie-74fd6.firebasestorage.app",
+      messagingSenderId: "303213897206",
+      appId: "1:303213897206:web:af70908946f606ef6313d7"
+    };
+    try {
+      firebase.initializeApp(firebaseConfig);
+      const fbDb = firebase.firestore();
+      window.fbDb = fbDb;
+      window.fbReady = true;
+      console.log("Firebase OK");
 
-    // Auto-upload preset courses not yet in Firebase
-    async function autoUploadPresets(){
-      const presets = window._getPresets ? window._getPresets() : [];
-      for(const c of presets){
-        try {
-          const check = await fbDb.collection('courses').where('name','==',c.name).get();
-          if(!check.empty) continue;
-          const {id,...data} = c;
-          await fbDb.collection('courses').add({...data, sharedBy:'ScoreCaddie', sharedAt: new Date().toISOString()});
-          console.log('Uploaded:', c.name);
-        } catch(e){ console.log('Skip:', c.name, e.message); }
+      window.fbAddDoc = function(col, data){ return col.add(data); };
+      window.fbGetDocs = function(col){ return col.get(); };
+      window.fbCollection = function(db, name){ return db.collection(name); };
+      window.fbSearchCourses = async function(query){
+        const snap = await fbDb.collection('courses').get();
+        const results = [];
+        snap.forEach(doc => {
+          const d = doc.data();
+          if(d.name && d.name.toLowerCase().includes(query.toLowerCase())) results.push({...d, _docId: doc.id});
+        });
+        return results;
+      };
+      window.fbShareCourse = async function(courseData, sharedBy){
+        const existing = await fbDb.collection('courses').where('name','==',courseData.name).get();
+        if(!existing.empty) return {alreadyExists: true};
+        return fbDb.collection('courses').add({...courseData, sharedBy, sharedAt: new Date().toISOString()});
+      };
+
+      // Auto-upload preset courses not yet in Firebase
+      async function autoUploadPresets(){
+        const presets = window._getPresets ? window._getPresets() : [];
+        for(const c of presets){
+          try {
+            const check = await fbDb.collection('courses').where('name','==',c.name).get();
+            if(!check.empty) continue;
+            const {id,...data} = c;
+            await fbDb.collection('courses').add({...data, sharedBy:'ScoreCaddie', sharedAt: new Date().toISOString()});
+            console.log('Uploaded:', c.name);
+          } catch(e){ console.log('Skip:', c.name, e.message); }
+        }
       }
+      autoUploadPresets();
+    } catch(e) {
+      window.fbReady = false;
+      console.log("Firebase init failed:", e.message);
     }
-    autoUploadPresets();
-  } catch(e) {
-    window.fbReady = false;
-    console.log("Firebase init failed:", e.message);
   }
-
-  window.fbAddDoc = function(col, data){ return col.add(data); };
-  window.fbGetDocs = function(col){ return col.get(); };
-  window.fbCollection = function(db, name){ return db.collection(name); };
-  window.fbWhere = function(f,o,v){ return [f,o,v]; };
-
-  window.fbSearchCourses = async function(query){
-    const snap = await fbDb.collection('courses').get();
-    const results = [];
-    snap.forEach(doc => {
-      const d = doc.data();
-      if(d.name && d.name.toLowerCase().includes(query.toLowerCase())){
-        results.push({...d, _docId: doc.id});
-      }
-    });
-    return results;
-  };
-
-  window.fbShareCourse = async function(courseData, sharedBy){
-    // Check if course with same name already exists
-    const existing = await fbDb.collection('courses').where('name','==',courseData.name).get();
-    if(!existing.empty){
-      console.log('Course already exists in Firebase:', courseData.name);
-      return {alreadyExists: true};
-    }
-    return fbDb.collection('courses').add({
-      ...courseData,
-      sharedBy: sharedBy,
-      sharedAt: new Date().toISOString()
-    });
-  };
-
-  console.log('Firebase ready');
 </script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js" onload="initFirebase()"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap');
 :root {
