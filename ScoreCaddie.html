@@ -1546,7 +1546,7 @@ function sfPts(score,par,strokes){
 function startRound(){
   if(!selCourseId){alert('Selecteer een baan.');return;}
   const course=courses.find(c=>c.id===selCourseId||String(c.id)===String(selCourseId));
-  if(!course){alert('Baan niet gevonden. Selecteer opnieuw.');return;}
+  if(!course){alert('Baan niet gevonden (id='+selCourseId+', beschikbaar: '+courses.map(c=>c.id).join(',')+')');return;}
   // Filter lege spelersslots eruit
   const activePlayers=setupPlayers.filter(p=>p.name.trim());
   if(!activePlayers.length){alert('Vul minimaal één speler in.');return;}
