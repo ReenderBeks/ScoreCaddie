@@ -57,7 +57,8 @@
           } catch(e){ console.log('Skip:', c.name, e.message); }
         }
       }
-      autoUploadPresets();
+      // Delay to ensure _getPresets is available
+      setTimeout(autoUploadPresets, 2000);
     } catch(e) {
       window.fbReady = false;
       console.log("Firebase init failed:", e.message);
@@ -1552,6 +1553,7 @@ function startRound(){
   if(activePlayers.some(p=>!p.teeColor)){alert('Selecteer een tee-kleur voor alle spelers.');return;}
   if(fmt==='sixpoints'&&activePlayers.length!==3){alert('6-punten vereist 3 spelers.');return;}
   if(fmt==='matchplay'&&activePlayers.length!==2){alert('Matchplay vereist 2 spelers.');return;}
+  if(fmt==='bbwb'&&activePlayers.length!==4){alert('Best Ball Worst Ball vereist 4 spelers (2 per team). Vul alle 4 namen in.');return;}
 
   R={
     courseId:selCourseId, fmt, date:new Date().toLocaleDateString('nl-NL'), extras:JSON.parse(JSON.stringify(extras)), extraWinners:{},
