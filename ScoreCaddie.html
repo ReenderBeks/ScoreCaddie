@@ -1333,7 +1333,7 @@ function renderSetup(){
 }
 
 function selCourse(id){
-  id=parseInt(id)||id;
+  id=parseFloat(id)||id;
   selCourseId=id;
   renderSetup();
   // Show player section now that a course is chosen
@@ -1545,7 +1545,8 @@ function sfPts(score,par,strokes){
 // ---- START ROUND ----
 function startRound(){
   if(!selCourseId){alert('Selecteer een baan.');return;}
-  const course=courses.find(c=>c.id===selCourseId);
+  const course=courses.find(c=>c.id===selCourseId||String(c.id)===String(selCourseId));
+  if(!course){alert('Baan niet gevonden. Selecteer opnieuw.');return;}
   // Filter lege spelersslots eruit
   const activePlayers=setupPlayers.filter(p=>p.name.trim());
   if(!activePlayers.length){alert('Vul minimaal één speler in.');return;}
