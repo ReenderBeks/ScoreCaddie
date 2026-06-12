@@ -20,10 +20,31 @@
     messagingSenderId: "303213897206",
     appId: "1:303213897206:web:af70908946f606ef6313d7"
   };
-  firebase.initializeApp(firebaseConfig);
-  const fbDb = firebase.firestore();
-  window.fbDb = fbDb;
-  window.fbReady = true;
+  try {
+    firebase.initializeApp(firebaseConfig);
+    const fbDb = firebase.firestore();
+    window.fbDb = fbDb;
+    window.fbReady = true;
+    console.log("Firebase OK");
+
+    // Auto-upload preset courses not yet in Firebase
+    async function autoUploadPresets(){
+      const presets = window._getPresets ? window._getPresets() : [];
+      for(const c of presets){
+        try {
+          const check = await fbDb.collection('courses').where('name','==',c.name).get();
+          if(!check.empty) continue;
+          const {id,...data} = c;
+          await fbDb.collection('courses').add({...data, sharedBy:'ScoreCaddie', sharedAt: new Date().toISOString()});
+          console.log('Uploaded:', c.name);
+        } catch(e){ console.log('Skip:', c.name, e.message); }
+      }
+    }
+    autoUploadPresets();
+  } catch(e) {
+    window.fbReady = false;
+    console.log("Firebase init failed:", e.message);
+  }
 
   window.fbAddDoc = function(col, data){ return col.add(data); };
   window.fbGetDocs = function(col){ return col.get(); };
@@ -237,18 +258,12 @@ table.sc tr.tot td.lbl{background:var(--gp)!important;}
     </div>
     <div id="gedeeld-results"></div>
     <hr style="border:none;border-top:1px solid #eee;margin:12px 0">
-    <hr style="border:none;border-top:1px solid #eee;margin:12px 0">
     <button class="btn btn-p btn-sm" onclick="browseAllFromFirebase()" style="margin-bottom:8px">🔍 Bekijk alle banen in Firebase</button>
     <hr style="border:none;border-top:1px solid #eee;margin:8px 0">
     <div style="font-size:12px;font-weight:600;color:var(--gd);margin-bottom:6px">📤 Jouw baan delen</div>
-    <p style="font-size:11px;color:var(--muted);margin-bottom:6px">Deel een van jouw opgeslagen banen zodat anderen hem kunnen laden.</p>
-    <button class="btn btn-p btn-sm" onclick="shareAllCourses()" style="margin-bottom:8px">⬆️ Upload alle banen naar Firebase</button>
+    <p style="font-size:11px;color:var(--muted);margin-bottom:6px">Deel een van jouw opgeslagen banen met de community:</p>
     <div id="share-course-list"></div>
-    <hr style="border:none;border-top:1px solid #eee;margin:12px 0">
-    <div style="font-size:12px;font-weight:600;color:var(--gd);margin-bottom:6px">🤖 Baan toevoegen via Claude/ChatGPT</div>
-    <p style="font-size:11px;color:var(--muted);margin-bottom:6px">Maak screenshots van de handicaptabel en scorekaart, stuur ze naar claude.ai of chatgpt.com met de vraag "geef me dit in ScoreCaddie JSON formaat", en plak de JSON hier:</p>
-    <textarea id="ai-import-text" style="width:100%;height:90px;font-size:11px;border:1.5px solid #ddd;border-radius:7px;padding:8px;font-family:monospace;background:var(--cream)" placeholder="Plak hier de JSON van Claude of ChatGPT..."></textarea>
-    <button class="btn btn-p" onclick="importAIData()" style="margin-top:6px">✅ Verwerk en deel</button>
+
     <button class="btn btn-s" onclick="document.getElementById('gedeeld-card').style.display='none'" style="margin-top:8px">Sluiten</button>
   </div>
   <div id="import-card" class="card" style="display:none">
@@ -273,27 +288,8 @@ table.sc tr.tot td.lbl{background:var(--gp)!important;}
     <div style="font-size:13px;font-weight:600;color:var(--gd);margin-bottom:4px">🌍 Gedeelde banen</div>
     <div style="font-size:12px;color:var(--muted);margin-bottom:10px">Zoek en laad banen die andere gebruikers hebben gedeeld. Of deel jouw eigen banen zodat anderen ze kunnen gebruiken.</div>
 
-    <div style="font-size:13px;font-weight:600;color:var(--gd);margin-bottom:4px">🤖 Baan toevoegen via Claude/ChatGPT</div>
-    <div style="font-size:12px;color:var(--muted);margin-bottom:6px">Maak twee screenshots:</div>
-    <div style="font-size:12px;color:var(--muted);margin-bottom:4px">1. De baanhandicap tabel (CR, Slope, Par per tee-kleur)</div>
-    <div style="font-size:12px;color:var(--muted);margin-bottom:10px">2. De scorekaart (par en SI per hole)</div>
-    <div style="font-size:12px;color:var(--muted);margin-bottom:6px">Stuur ze naar claude.ai of chatgpt.com met deze tekst:</div>
-    <div style="font-size:11px;background:var(--cream);border:1px solid #ddd;border-radius:7px;padding:8px;font-family:monospace;color:var(--text);margin-bottom:10px;line-height:1.6">Analyseer de bijgevoegde scorekaart en handicaptabel en geef me de baangegevens in dit exacte JSON formaat. Geef ALLEEN de JSON terug, geen uitleg:<br><br>
-{<br>
-&nbsp;"name": "Naam van de baan",<br>
-&nbsp;"holes": 18,<br>
-&nbsp;"tees": [{<br>
-&nbsp;&nbsp;"color": "yellow",<br>
-&nbsp;&nbsp;"crM": 72.5, "srM": 135, "parM": 72,<br>
-&nbsp;&nbsp;"crF": 78.9, "srF": 143, "parF": 72<br>
-&nbsp;}],<br>
-&nbsp;"siData": [<br>
-&nbsp;&nbsp;{"par": 4, "si": 8},<br>
-&nbsp;&nbsp;{"par": 3, "si": 16}<br>
-&nbsp;]<br>
-}<br><br>
-Gebruik voor color: white, yellow, blue, red, orange, black of gold. Voeg alle tee-kleuren toe. siData bevat alle holes op volgorde.</div>
-    <div style="font-size:12px;color:var(--muted)">Kopieer de JSON → Gedeelde banen → Baan toevoegen via Claude/ChatGPT → Plak → Verwerk en deel.</div>
+    <div style="font-size:13px;font-weight:600;color:var(--gd);margin-bottom:4px">⛳ Baan toevoegen aan de bibliotheek</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:6px">Staat jouw baan er niet bij? Stuur een verzoek aan <strong>Reender Beks</strong> via <strong>reenderbeks@gmail.com</strong> met de naam van de baan en het land of de regio — hij zorgt dat de baan wordt toegevoegd voor iedereen.</div>
 
     <div style="font-size:13px;font-weight:600;color:var(--gd);margin:10px 0 4px">🎮 Spelformats</div>
     <div style="font-size:12px;color:var(--muted);margin-bottom:2px"><strong>Stableford</strong> — punten per hole, meeste punten wint</div>
@@ -815,6 +811,69 @@ const PRESET_COURSES = [
       {par:4,si:14},{par:4,si:4},{par:5,si:10},{par:4,si:8},{par:4,si:2},
       {par:3,si:16},{par:5,si:18},{par:3,si:12},{par:4,si:6}
     ]
+  },
+  {
+    id: 900022,
+    name: "Old Course Loenen – 9 holes",
+    holes: 9,
+    tees: [
+      {color:"white",  crM:36.7, srM:135, parM:36, crF:0,    srF:0,   parF:0},
+      {color:"yellow", crM:35.1, srM:124, parM:36, crF:38.0, srF:140, parF:36},
+      {color:"blue",   crM:34.2, srM:120, parM:36, crF:36.8, srF:132, parF:36},
+      {color:"red",    crM:32.5, srM:118, parM:36, crF:35.1, srF:129, parF:36},
+      {color:"orange", crM:31.8, srM:110, parM:36, crF:33.5, srF:118, parF:36}
+    ],
+    siData: [
+      {par:4,si:7},{par:4,si:3},{par:4,si:5},{par:3,si:9},{par:3,si:8},
+      {par:4,si:1},{par:5,si:4},{par:5,si:2},{par:4,si:6}
+    ]
+  },
+  {
+    id: 900023,
+    name: "Lage Vuursche – 18 holes",
+    holes: 18,
+    tees: [
+      {color:"white",  crM:75.2, srM:145, parM:71, crF:0,    srF:0,   parF:0},
+      {color:"yellow", crM:74.3, srM:146, parM:71, crF:80.1, srF:156, parF:71},
+      {color:"blue",   crM:71.4, srM:139, parM:71, crF:77.7, srF:148, parF:71},
+      {color:"red",    crM:67.8, srM:131, parM:71, crF:73.4, srF:138, parF:71}
+    ],
+    siData: [
+      {par:4,si:9},{par:4,si:3},{par:4,si:15},{par:3,si:11},{par:4,si:13},
+      {par:3,si:17},{par:4,si:1},{par:5,si:5},{par:4,si:7},
+      {par:4,si:14},{par:4,si:2},{par:5,si:10},{par:4,si:18},{par:3,si:12},
+      {par:4,si:4},{par:5,si:6},{par:3,si:16},{par:4,si:8}
+    ]
+  },
+  {
+    id: 900024,
+    name: "Lage Vuursche – 1e 9 holes",
+    holes: 9,
+    tees: [
+      {color:"white",  crM:37.2, srM:138, parM:35, crF:0,    srF:0,   parF:0},
+      {color:"yellow", crM:36.8, srM:139, parM:35, crF:39.3, srF:161, parF:35},
+      {color:"blue",   crM:35.4, srM:133, parM:35, crF:38.5, srF:145, parF:35},
+      {color:"red",    crM:33.3, srM:132, parM:35, crF:36.2, srF:137, parF:35}
+    ],
+    siData: [
+      {par:4,si:9},{par:4,si:3},{par:4,si:15},{par:3,si:11},{par:4,si:13},
+      {par:3,si:17},{par:4,si:1},{par:5,si:5},{par:4,si:7}
+    ]
+  },
+  {
+    id: 900025,
+    name: "Lage Vuursche – 2e 9 holes",
+    holes: 9,
+    tees: [
+      {color:"white",  crM:38.1, srM:152, parM:36, crF:0,    srF:0,   parF:0},
+      {color:"yellow", crM:37.6, srM:153, parM:36, crF:40.8, srF:151, parF:36},
+      {color:"blue",   crM:36.0, srM:145, parM:36, crF:39.3, srF:151, parF:36},
+      {color:"red",    crM:34.6, srM:130, parM:36, crF:37.3, srF:139, parF:36}
+    ],
+    siData: [
+      {par:4,si:14},{par:4,si:2},{par:5,si:10},{par:4,si:18},{par:3,si:12},
+      {par:4,si:4},{par:5,si:6},{par:3,si:16},{par:4,si:8}
+    ]
   }
 ];
 
@@ -850,12 +909,14 @@ function showCommunity(){
   const _cc=document.getElementById('gedeeld-card'); if(_cc) _cc.style.display='block';
   // Populate share list
   const sl = document.getElementById('share-course-list');
-  if(!courses.length){ sl.innerHTML='<div class="alert alert-i">Geen banen opgeslagen.</div>'; return; }
-  sl.innerHTML = courses.map((c,i) => '<div class="ci" style="cursor:default">'
-    + '<div><div class="ci-name">'+c.name+'</div>'
-    + '<div class="ci-meta">'+c.holes+' holes · '+c.tees.length+' tee-kleuren</div></div>'
-    + '<button class="btn btn-p btn-sm" onclick="shareCourse('+i+')" style="margin:0">Delen</button>'
-    + '</div>').join('');
+  if(!courses.length){ sl.innerHTML='<div class="alert alert-i">Geen banen opgeslagen.</div>'; }
+  else {
+    sl.innerHTML = courses.map((c,i) => '<div class="ci" style="cursor:default">'
+      + '<div><div class="ci-name">'+c.name+'</div>'
+      + '<div class="ci-meta">'+c.holes+' holes · '+c.tees.length+' tee-kleuren</div></div>'
+      + '<button class="btn btn-p btn-sm" onclick="shareCourse('+i+')" style="margin:0">Delen</button>'
+      + '</div>').join('');
+  }
 }
 
 async function searchGedeeld(){
@@ -958,6 +1019,24 @@ async function loadAllFromFirebase(){
   } catch(e){
     alert('Fout: '+e.message);
   }
+}
+
+async function uploadNewPresets(){
+  if(!window.fbReady){ alert("Firebase niet beschikbaar."); return; }
+  const name = prompt("Jouw naam:", "ScoreCaddie");
+  if(!name) return;
+  const presets = window._getPresets ? window._getPresets() : [];
+  let uploaded=0, skipped=0;
+  for(const c of presets){
+    try {
+      const check = await fbDb.collection("courses").where("name","==",c.name).get();
+      if(!check.empty){ skipped++; continue; }
+      const {id,...data} = c;
+      await window.fbShareCourse(data, name);
+      uploaded++;
+    } catch(e){ skipped++; }
+  }
+  alert(uploaded+" nieuwe banen geüpload! ✅ ("+skipped+" al aanwezig)");
 }
 
 async function shareAllCourses(){
