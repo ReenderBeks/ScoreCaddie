@@ -313,6 +313,13 @@ table.sc tr.tot td.lbl{background:var(--gp)!important;}
     <div class="ctitle">📋 Mijn rondes</div>
     <div id="rounds-list"></div>
   </div>
+  <div class="card">
+    <div class="ctitle">💾 Back-up</div>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:4px">Je rondes en banen staan alleen op deze telefoon. Maak af en toe een back-up en bewaar het bestand in Bestanden, iCloud Drive of stuur het naar jezelf.</p>
+    <button class="btn btn-p" onclick="makeBackup()">📤 Back-up maken</button>
+    <button class="btn btn-s" onclick="document.getElementById('restore-file').click()">📥 Back-up terugzetten</button>
+    <input type="file" id="restore-file" accept=".json,.txt,application/json,text/plain" style="display:none" onchange="restoreBackupFile(this)">
+  </div>
 </div>
 
 <!-- RONDE DETAIL -->
@@ -420,6 +427,7 @@ table.sc tr.tot td.lbl{background:var(--gp)!important;}
   <div class="back" onclick="go('s-scorecard')">← Terug</div>
   <div id="sum-content"></div>
   <div class="alert alert-i" style="margin-top:4px">✓ Deze ronde is opgeslagen. Je vindt hem terug onder Mijn rondes.</div>
+  <button class="btn btn-s" onclick="shareCurrentRound()">📤 Deel scorekaart</button>
   <button class="btn btn-p" onclick="newRound()">🔄 Nieuwe ronde</button>
 </div>
 
@@ -1425,6 +1433,7 @@ function showRoundDetail(id){
     });
     html+='</div>';
   }
+  html+=`<button class="btn btn-p" onclick="shareRound(${r.id})">📤 Deel scorekaart</button>`;
   html+=`<button class="btn btn-d" onclick="deleteRound(${r.id})">🗑 Ronde verwijderen</button>`;
   el.innerHTML=html;
 }
@@ -1434,6 +1443,94 @@ function deleteRound(id){
   rounds=rounds.filter(x=>x.id!==id);
   save('gm4-rounds',rounds);
   go('s-rounds');
+}
+
+// ---- DELEN & BACK-UP ----
+function genderLabel(g){return g==='f'?'dames':'heren';}
+function roundShareText(r){
+  const c=roundCourse(r); if(!c) return null;
+  const n=c.holes;
+  const line=(pi,from,to)=>{
+    const vals=[];let t=0;
+    for(let hi=from;hi<to;hi++){const s=(r.scores[pi]&&r.scores[pi][hi])||0;vals.push(s?String(s):'–');t+=s;}
+    return {txt:vals.join(' '),t};
+  };
+  let out='⛳ '+c.name+' · '+r.date+'\n';
+  r.players.forEach((p,pi)=>{
+    out+='\n'+p.name+' ('+teeName(p.teeColor).toLowerCase()+', '+genderLabel(p.gender)+')\n';
+    if(n===18){
+      const a=line(pi,0,9), b=line(pi,9,18);
+      out+='1-9:   '+a.txt+' = '+a.t+'\n';
+      out+='10-18: '+b.txt+' = '+b.t+'\n';
+      out+='Totaal: '+(a.t+b.t)+'\n';
+    } else {
+      const a=line(pi,0,n);
+      out+='1-'+n+': '+a.txt+' = '+a.t+'\n';
+    }
+  });
+  out+='\nBruto slagen per hole, gedeeld via ScoreCaddie';
+  return out;
+}
+async function shareText(text,title){
+  if(navigator.share){
+    try{ await navigator.share({title:title||'ScoreCaddie',text}); return; }
+    catch(e){ if(e&&e.name==='AbortError') return; }
+  }
+  try{ await navigator.clipboard.writeText(text); alert('Gekopieerd ✅ Plak het in WhatsApp of een ander bericht.'); }
+  catch(e){ prompt('Kopieer deze tekst:',text); }
+}
+function shareRound(id){
+  const r=rounds.find(x=>x.id===id); if(!r){alert('Ronde niet gevonden.');return;}
+  const t=roundShareText(r);
+  if(!t){alert('De baan van deze ronde ontbreekt, delen lukt niet.');return;}
+  shareText(t,'Scorekaart');
+}
+function shareCurrentRound(){ if(R) shareRound(R.id); }
+
+// Back-up als bestand (banen + rondes + speler 1)
+function backupPayload(){
+  return {app:'ScoreCaddie', v:2, made:new Date().toISOString(),
+    courses:JSON.parse(localStorage.getItem('gm4-courses')||'[]'),
+    rounds:JSON.parse(localStorage.getItem('gm4-rounds')||'[]'),
+    player1:JSON.parse(localStorage.getItem('gm4-player1')||'null')};
+}
+async function makeBackup(){
+  const json=JSON.stringify(backupPayload());
+  const d=new Date(); const pad=x=>String(x).padStart(2,'0');
+  const fname='ScoreCaddie-backup-'+d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'.json';
+  let file=null;
+  try{ file=new File([json],fname,{type:'application/json'}); }catch(e){}
+  if(file && navigator.canShare && navigator.canShare({files:[file]})){
+    try{ await navigator.share({files:[file],title:'ScoreCaddie back-up'}); return; }
+    catch(e){ if(e&&e.name==='AbortError') return; }
+  }
+  // Terugval: bestand downloaden
+  try{
+    const url=URL.createObjectURL(new Blob([json],{type:'application/json'}));
+    const a=document.createElement('a'); a.href=url; a.download=fname; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),5000);
+  }catch(e){ alert('Back-up maken lukte niet: '+e.message); }
+}
+function mergeBackup(data){
+  let nc=0,nr=0;
+  (data.courses||[]).forEach(c=>{ if(c&&c.name&&!courses.some(x=>x.name===c.name)){courses.push(c);nc++;} });
+  (data.rounds||[]).forEach(r=>{ if(r&&r.id&&!rounds.some(x=>x.id===r.id)){rounds.push(r);nr++;} });
+  if(data.player1 && !localStorage.getItem('gm4-player1')) localStorage.setItem('gm4-player1',JSON.stringify(data.player1));
+  save('gm4-courses',courses);
+  save('gm4-rounds',rounds);
+  alert('Back-up teruggezet ✅\n'+nr+' ronde(s) en '+nc+' baan/banen toegevoegd. Wat al in de app stond is niet overschreven.');
+  go('s-rounds');
+}
+function parseBackupText(txt){
+  txt=txt.trim();
+  try{ return JSON.parse(txt); }catch(e){}
+  return JSON.parse(decodeURIComponent(escape(atob(txt)))); // oude exportcodes
+}
+function restoreBackupFile(input){
+  const f=input.files&&input.files[0]; if(!f) return;
+  const rd=new FileReader();
+  rd.onload=()=>{ try{ mergeBackup(parseBackupText(String(rd.result))); }catch(e){ alert('Dit bestand is geen geldige ScoreCaddie back-up.'); } input.value=''; };
+  rd.readAsText(f);
 }
 
 // ---- COURSES ----
