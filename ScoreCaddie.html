@@ -29,32 +29,54 @@
       window.fbAddDoc = function(col, data){ return col.add(data); };
       window.fbGetDocs = function(col){ return col.get(); };
       window.fbCollection = function(db, name){ return db.collection(name); };
-      window.fbSearchCourses = async function(query){
+      // Alle gedeelde banen ophalen, aangevuld met baan/lus/land (ook oude records zonder die velden)
+      window.fbAllCourses = async function(){
         const snap = await fbDb.collection('courses').get();
-        const results = [];
+        const out = [];
         snap.forEach(doc => {
           const d = doc.data();
-          if(d.name && d.name.toLowerCase().includes(query.toLowerCase())) results.push({...d, _docId: doc.id});
+          if(!d || !d.name) return;
+          const hadClub = !!d.club;
+          const c = window.normCourse ? window.normCourse({...d}) : {...d};
+          out.push({...c, _docId: doc.id, _hadClub: hadClub});
         });
-        return results;
+        return out;
       };
+      window.fbSearchCourses = async function(query){
+        const all = await window.fbAllCourses();
+        const q = window.normStr ? window.normStr(query) : query.toLowerCase();
+        return all.filter(c => (window.normStr ? window.normStr(c.club+' '+c.loop+' '+c.country+' '+c.name) : c.name.toLowerCase()).includes(q));
+      };
+      // Delen: dubbelcheck op baan + lus + holes, niet op de losse naam
       window.fbShareCourse = async function(courseData, sharedBy){
-        const existing = await fbDb.collection('courses').where('name','==',courseData.name).get();
-        if(!existing.empty) return {alreadyExists: true};
-        return fbDb.collection('courses').add({...courseData, sharedBy, sharedAt: new Date().toISOString()});
+        const c = window.normCourse ? window.normCourse({...courseData}) : {...courseData};
+        const all = await window.fbAllCourses();
+        if(all.some(x => window.courseKey(x) === window.courseKey(c))) return {alreadyExists: true};
+        delete c.manual;
+        return fbDb.collection('courses').add({...c, sharedBy, sharedAt: new Date().toISOString()});
       };
 
-      // Auto-upload preset courses not yet in Firebase
+      // Standaardbanen naar Firebase: ontbrekende toevoegen, oude records aanvullen met baan/lus/land
       async function autoUploadPresets(){
         const presets = window._getPresets ? window._getPresets() : [];
-        for(const c of presets){
+        if(!presets.length || !window.courseKey) return;
+        let all = [];
+        try { all = await window.fbAllCourses(); } catch(e){ console.log('Firebase lezen mislukt:', e.message); return; }
+        for(const p of presets){
           try {
-            const check = await fbDb.collection('courses').where('name','==',c.name).get();
-            if(!check.empty) continue;
-            const {id,...data} = c;
+            const key = window.courseKey(p);
+            const hit = all.find(x => window.courseKey(x) === key);
+            if(hit){
+              if(!hit._hadClub){
+                await fbDb.collection('courses').doc(hit._docId).update({name:p.name, club:p.club, loop:p.loop, country:p.country});
+                console.log('Bijgewerkt:', p.name);
+              }
+              continue;
+            }
+            const {id, legacyName, ...data} = p;
             await fbDb.collection('courses').add({...data, sharedBy:'ScoreCaddie', sharedAt: new Date().toISOString()});
-            console.log('Uploaded:', c.name);
-          } catch(e){ console.log('Skip:', c.name, e.message); }
+            console.log('Uploaded:', p.name);
+          } catch(e){ console.log('Skip:', p.name, e.message); }
         }
       }
       // Delay to ensure _getPresets is available
@@ -222,6 +244,12 @@ table.sc tr.tot td.lbl{background:var(--gp)!important;}
 .rd-under{color:#1e7e34;font-weight:700;}
 .rd-over{color:var(--red);}
 .rd-empty{color:#ccc;}
+.club-row .chev{color:var(--gl);font-size:16px;font-weight:700;width:14px;text-align:center;}
+.club-row.open{border-color:var(--gl);background:var(--gp);margin-bottom:4px;}
+.loops{margin:0 0 9px 12px;padding-left:9px;border-left:2px solid var(--gp);}
+.loop-row{padding:7px 10px;margin-bottom:5px;gap:8px;}
+.club-row{gap:8px;}
+.loop-row .ci-name{font-weight:500;}
 </style>
 </head>
 <body>
@@ -264,13 +292,13 @@ table.sc tr.tot td.lbl{background:var(--gp)!important;}
     </div>
 
     <div style="font-size:13px;font-weight:600;color:var(--gd);margin-bottom:4px">⛳ Ronde starten</div>
-    <div style="font-size:12px;color:var(--muted);margin-bottom:10px">Kies een baan, stel spelers in met handicap en tee-kleur, kies een spelformat en begin. De app berekent automatisch hoeveel slagen elke speler krijgt.</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px">Tik op een baan en kies de lus, stel spelers in met handicap en tee-kleur, kies een spelformat en begin. De app berekent automatisch hoeveel slagen elke speler krijgt.</div>
 
     <div style="font-size:13px;font-weight:600;color:var(--gd);margin-bottom:4px">🗺️ Banen beheren</div>
-    <div style="font-size:12px;color:var(--muted);margin-bottom:10px">Voer handmatig een baan in met CR, Slope, Par en SI per hole. Of gebruik Gedeelde banen om banen van anderen te laden.</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px">Je banen, gegroepeerd per baan met daaronder de lussen. Bewerk of verwijder een lus, of hernoem een baan met ✏️. Handmatig toevoegen kan ook, bijvoorbeeld zonder internet. Zo'n baan krijgt het label <em>handmatig</em> en blijft op je eigen telefoon tot je hem deelt.</div>
 
     <div style="font-size:13px;font-weight:600;color:var(--gd);margin-bottom:4px">🌍 Gedeelde banen</div>
-    <div style="font-size:12px;color:var(--muted);margin-bottom:10px">Zoek en laad banen die andere gebruikers hebben gedeeld. Of deel jouw eigen banen zodat anderen ze kunnen gebruiken.</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px">Zoek en laad banen die anderen hebben gedeeld: per lus, of met <em>Alles laden</em> alle lussen van een baan tegelijk. Of deel jouw eigen banen.</div>
 
     <div style="font-size:13px;font-weight:600;color:var(--gd);margin-bottom:4px">⛳ Baan toevoegen aan de bibliotheek</div>
     <div style="font-size:12px;color:var(--muted);margin-bottom:6px">Staat jouw baan er niet bij? Stuur een verzoek aan <strong>Reender Beks</strong> via <strong>reenderbeks@gmail.com</strong> met de naam van de baan en het land of de regio — hij zorgt dat de baan wordt toegevoegd voor iedereen.</div>
@@ -292,12 +320,12 @@ table.sc tr.tot td.lbl{background:var(--gp)!important;}
     <div class="ctitle">🌍 Gedeelde banen</div>
     <p style="font-size:12px;color:var(--muted);margin-bottom:8px">Zoek en laad banen die anderen gedeeld hebben, of deel jouw eigen banen.</p>
     <div style="display:flex;gap:6px;margin-bottom:8px">
-      <input type="text" id="gedeeld-search" placeholder="Zoek op baannaam..." style="flex:1;padding:8px 10px;border:1.5px solid #ddd;border-radius:7px;font-size:13px">
+      <input type="text" id="gedeeld-search" placeholder="Zoek op baan, lus of land..." onkeydown="if(event.key==='Enter')searchGedeeld()" style="flex:1;padding:8px 10px;border:1.5px solid #ddd;border-radius:7px;font-size:13px">
       <button class="btn btn-p btn-sm" onclick="searchGedeeld()" style="margin:0;white-space:nowrap">🔍 Zoek</button>
     </div>
     <div id="gedeeld-results"></div>
     <hr style="border:none;border-top:1px solid #eee;margin:12px 0">
-    <button class="btn btn-p btn-sm" onclick="browseAllFromFirebase()" style="margin-bottom:8px">🔍 Bekijk alle banen in Firebase</button>
+    <button class="btn btn-p btn-sm" onclick="browseAllFromFirebase()" style="margin-bottom:8px">🔍 Bekijk alle gedeelde banen</button>
     <hr style="border:none;border-top:1px solid #eee;margin:8px 0">
     <div style="font-size:12px;font-weight:600;color:var(--gd);margin-bottom:6px">📤 Jouw baan delen</div>
     <p style="font-size:11px;color:var(--muted);margin-bottom:6px">Deel een van jouw opgeslagen banen met de community:</p>
@@ -334,7 +362,8 @@ table.sc tr.tot td.lbl{background:var(--gp)!important;}
   <div class="card">
     <div class="ctitle">🗺️ Opgeslagen banen</div>
     <div id="courses-list"></div>
-    <button class="btn btn-p" onclick="newCourse()">+ Nieuwe baan</button>
+    <button class="btn btn-s" onclick="newCourse()">+ Handmatig toevoegen</button>
+    <p style="font-size:11px;color:var(--muted);margin-top:6px">Alleen als het niet anders kan, bijvoorbeeld zonder internet. Een handmatige baan blijft op je eigen telefoon tot je hem zelf deelt.</p>
   </div>
 </div>
 
@@ -343,8 +372,15 @@ table.sc tr.tot td.lbl{background:var(--gp)!important;}
   <div class="back" onclick="go('s-courses')">← Terug naar banen</div>
   <div class="card">
     <div class="ctitle">✏️ Baan invoeren</div>
-    <label>Naam baan</label>
-    <input id="ce-name" type="text" placeholder="bijv. AOC – 9 holes Blauw">
+    <label>Baan</label>
+    <select id="ce-club" onchange="ceClubChanged()"></select>
+    <input id="ce-club-new" type="text" placeholder="Zoals Golf.nl hem noemt, bijv. De Lage Vuursche" style="display:none;margin-top:6px">
+    <label>Lus</label>
+    <input id="ce-loop" type="text" placeholder="Zoals op de scorekaart, bijv. Gooimeer-Markermeer">
+    <div style="font-size:10px;color:var(--muted);margin-top:3px">Leeg laten als de baan maar één lus heeft; dan heet hij "Hele baan".</div>
+    <label>Land</label>
+    <select id="ce-country" onchange="document.getElementById('ce-country-new').style.display=this.value==='__other'?'block':'none'"></select>
+    <input id="ce-country-new" type="text" placeholder="Land" style="display:none;margin-top:6px">
     <label>Aantal holes</label>
     <select id="ce-holes" onchange="renderSIInputs()">
       <option value="9">9 holes</option>
@@ -370,10 +406,8 @@ table.sc tr.tot td.lbl{background:var(--gp)!important;}
   <div class="back" onclick="go('s-home')">← Terug</div>
   <div class="card">
     <div class="ctitle">⛳ Ronde instellen</div>
-    <label>Selecteer baan</label>
-    <select id="course-sel" onchange="selCourse(parseInt(this.value))" style="width:100%;padding:9px 12px;border:1.5px solid #ddd;border-radius:7px;font-size:14px;background:var(--cream)">
-      <option value="">-- Kies een baan --</option>
-    </select>
+    <label>Baan en lus</label>
+    <div id="course-picker"></div>
     <div id="num-players-section" style="display:none">
     <label style="margin-top:12px">Aantal spelers</label>
     <div style="display:flex;align-items:center;gap:10px;margin-top:4px">
@@ -480,6 +514,122 @@ const TEE_COLORS=[
 function teeHex(id){return (TEE_COLORS.find(t=>t.id===id)||{hex:'#999'}).hex;}
 function teeName(id){return (TEE_COLORS.find(t=>t.id===id)||{label:id}).label;}
 
+// ---- BAAN / LUS / LAND ----
+// Een "course" is één speelbare lus (9 of 18 holes). club = de baan (zoals Golf.nl hem noemt), loop = de lus.
+const COUNTRIES=['Nederland','België','Duitsland','Frankrijk','Spanje','Portugal','Italië','Engeland','Schotland','Ierland','Turkije'];
+const DEFAULT_LOOP='Hele baan';
+function normStr(s){return String(s==null?'':s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim();}
+let _legacy=null;
+function legacyMap(){
+  if(_legacy) return _legacy;
+  _legacy={};
+  (typeof PRESET_COURSES!=='undefined'?PRESET_COURSES:[]).forEach(p=>{
+    const v={club:p.club,loop:p.loop,country:p.country};
+    if(p.legacyName) _legacy[normStr(p.legacyName)]=v;
+    _legacy[normStr(p.name)]=v;
+  });
+  return _legacy;
+}
+// Vult club/loop/country aan (ook voor oude banen met alleen een naam) en zet de naam gelijk aan "Baan – Lus"
+function normCourse(c){
+  if(!c) return c;
+  if(!c.club){
+    const m=legacyMap()[normStr(c.name)];
+    if(m){ c.club=m.club; c.loop=m.loop; if(!c.country) c.country=m.country; }
+    else {
+      const parts=String(c.name||'').split(/\s+[–—-]\s+/);
+      // Naamconventie: zonder "Golfclub"/"Golfbaan" ervoor (zoals Golf.nl)
+      c.club=(parts.shift()||'Onbekende baan').trim().replace(/^(golfclub|golfbaan)\s+/i,'')||'Onbekende baan';
+      c.loop=parts.join(' – ').trim();
+    }
+  }
+  c.club=String(c.club).trim();
+  c.loop=String(c.loop||'').trim()||DEFAULT_LOOP;
+  c.country=String(c.country||'').trim()||'Nederland';
+  c.name=c.club+' – '+c.loop;
+  return c;
+}
+function courseKey(c){return normStr(c.club)+'|'+normStr(c.loop)+'|'+(c.holes||'');}
+window.normStr=normStr; window.normCourse=normCourse; window.courseKey=courseKey;
+
+// Groepeert lussen per land en baan. items: [{c:course, ...}]
+function groupCourses(items){
+  const byClub={};
+  items.forEach(it=>{
+    const k=normStr(it.c.country)+'|'+normStr(it.c.club);
+    (byClub[k]=byClub[k]||{key:k,club:it.c.club,country:it.c.country,items:[]}).items.push(it);
+  });
+  const groups=Object.values(byClub);
+  groups.forEach(g=>g.items.sort((a,b)=>(b.c.holes-a.c.holes)||a.c.loop.localeCompare(b.c.loop,'nl')));
+  // Nederland eerst, daarna overige landen alfabetisch; binnen een land op baannaam
+  groups.sort((a,b)=>{
+    const an=normStr(a.country)==='nederland'?0:1, bn=normStr(b.country)==='nederland'?0:1;
+    return (an-bn)||a.country.localeCompare(b.country,'nl')||a.club.localeCompare(b.club,'nl');
+  });
+  return groups;
+}
+function loopMeta(c,extra){
+  const bits=[c.holes+' holes',(c.tees||[]).length+' tee-kleur'+((c.tees||[]).length===1?'':'en')];
+  if(extra) bits.push(extra);
+  return bits.join(' · ');
+}
+const manualTag='<span class="pill py" style="font-size:9px;padding:1px 6px;margin-left:5px;vertical-align:middle">handmatig</span>';
+
+// Eén lijstweergave voor alle schermen: banen, en na aantikken de lussen
+const CL={}; // per lijst: {groups, opts, open:Set}
+function renderClubList(listId, items, opts){
+  const st=CL[listId]||(CL[listId]={open:new Set()});
+  st.items=items; st.opts=opts||{};
+  st.groups=groupCourses(items);
+  drawClubList(listId);
+}
+function drawClubList(listId){
+  const st=CL[listId], el=document.getElementById(listId); if(!el) return;
+  const o=st.opts, groups=st.groups;
+  if(!groups.length){ el.innerHTML=o.empty||'<div class="alert alert-i">Geen banen.</div>'; return; }
+  const multiCountry=new Set(groups.map(g=>normStr(g.country))).size>1;
+  let html='', lastCountry=null;
+  groups.forEach((g,gi)=>{
+    if(multiCountry && normStr(g.country)!==lastCountry){
+      lastCountry=normStr(g.country);
+      html+=`<div class="nine-lbl" style="margin:${gi?12:0}px 0 5px">${esc(g.country)}</div>`;
+    }
+    const open=st.open.has(g.key);
+    const direct=o.singleDirect && g.items.length===1;
+    const tap=direct?`clLoopTap('${listId}',${gi},0)`:`toggleClub('${listId}',${gi})`;
+    const sub=direct?esc(g.items[0].c.loop)+' · '+g.items[0].c.holes+' holes':(g.items.length+(g.items.length===1?' lus':' lussen'));
+    const clubAct=o.clubAction?o.clubAction(g,gi):'';
+    html+=`<div class="ci ci-tap club-row${open?' open':''}" onclick="${tap}">
+      <div style="min-width:0"><div class="ci-name">${esc(g.club)}</div><div class="ci-meta">${sub}</div></div>
+      <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">${clubAct?`<span onclick="event.stopPropagation()">${clubAct}</span>`:''}<span class="chev">${direct?'›':(open?'▾':'▸')}</span></div>
+    </div>`;
+    if(open && !direct){
+      html+='<div class="loops">'+g.items.map((it,li)=>{
+        const sel=o.isSelected&&o.isSelected(it);
+        const act=o.loopAction?o.loopAction(it,gi,li):'';
+        const tapAttr=o.onLoopTap?` ci-tap" onclick="clLoopTap('${listId}',${gi},${li})`:'';
+        return `<div class="ci loop-row${sel?' sel':''}${tapAttr}">
+          <div style="min-width:0"><div class="ci-name">${esc(it.c.loop)}${it.c.manual?manualTag:''}</div><div class="ci-meta">${loopMeta(it.c,o.metaExtra?o.metaExtra(it):'')}</div></div>
+          ${act?`<div style="display:flex;gap:5px;flex-shrink:0" onclick="event.stopPropagation()">${act}</div>`:''}
+        </div>`;
+      }).join('')+'</div>';
+    }
+  });
+  el.innerHTML=html;
+}
+function toggleClub(listId,gi){
+  const st=CL[listId], g=st.groups[gi]; if(!g) return;
+  if(st.open.has(g.key)) st.open.delete(g.key); else st.open.add(g.key);
+  drawClubList(listId);
+}
+function clLoopTap(listId,gi,li){
+  const st=CL[listId], it=st.groups[gi]&&st.groups[gi].items[li];
+  if(it && st.opts.onLoopTap) st.opts.onLoopTap(it);
+}
+function clItem(listId,gi,li){const g=CL[listId]&&CL[listId].groups[gi];return g?g.items[li]:null;}
+function clGroup(listId,gi){return CL[listId]&&CL[listId].groups[gi];}
+function hasLocal(c){const k=courseKey(c);return courses.some(x=>courseKey(x)===k);}
+
 // ---- NAV ----
 function go(id){
   document.querySelectorAll('.scr').forEach(s=>s.classList.remove('on'));
@@ -498,7 +648,7 @@ window._getPresets = function(){ return PRESET_COURSES; };
 const PRESET_COURSES = [
   {
     id: 900001,
-    name: "Golf Torrequebrada – 18 holes",
+    name: "Torrequebrada – Hele baan", club: "Torrequebrada", loop: "Hele baan", country: "Spanje", legacyName: "Golf Torrequebrada – 18 holes",
     holes: 18,
     tees: [
       {color:"white",  crM:71.2, srM:139, parM:72, crF:77.5, srF:141, parF:72},
@@ -515,7 +665,7 @@ const PRESET_COURSES = [
   },
   {
     id: 900002,
-    name: "Amsterdam Old Course – 9 holes",
+    name: "Amsterdam Old Course – Hele baan", club: "Amsterdam Old Course", loop: "Hele baan", country: "Nederland", legacyName: "Amsterdam Old Course – 9 holes",
     holes: 9,
     tees: [
       {color:"white",  crM:34.7, srM:132, parM:35, crF:0,    srF:0,   parF:0},
@@ -530,7 +680,7 @@ const PRESET_COURSES = [
   },
   {
     id: 900003,
-    name: "Amsterdam Old Course – 18 holes Heren (Geel-Wit)",
+    name: "Amsterdam Old Course – Heren 2x9 (geel-wit)", club: "Amsterdam Old Course", loop: "Heren 2x9 (geel-wit)", country: "Nederland", legacyName: "Amsterdam Old Course – 18 holes Heren (Geel-Wit)",
     holes: 18,
     tees: [
       {color:"yellow", crM:69.2, srM:131, parM:71, crF:0, srF:0, parF:0}
@@ -544,7 +694,7 @@ const PRESET_COURSES = [
   },
   {
     id: 900004,
-    name: "Amsterdam Old Course – 18 holes Dames (Rood-Blauw)",
+    name: "Amsterdam Old Course – Dames 2x9 (rood-blauw)", club: "Amsterdam Old Course", loop: "Dames 2x9 (rood-blauw)", country: "Nederland", legacyName: "Amsterdam Old Course – 18 holes Dames (Rood-Blauw)",
     holes: 18,
     tees: [
       {color:"red", crM:0, srM:0, parM:0, crF:72.6, srF:135, parF:72}
@@ -558,7 +708,7 @@ const PRESET_COURSES = [
   },
   {
     id: 900005,
-    name: "Goyer Golf & Country Club – 18 holes",
+    name: "Goyer – Hele baan", club: "Goyer", loop: "Hele baan", country: "Nederland", legacyName: "Goyer Golf & Country Club – 18 holes",
     holes: 18,
     tees: [
       {color:"white",  crM:75.0, srM:143, parM:72, crF:0,    srF:0,   parF:0},
@@ -575,7 +725,7 @@ const PRESET_COURSES = [
   },
   {
     id: 900006,
-    name: "Goyer Golf & Country Club – 1e 9 holes",
+    name: "Goyer – 1e 9", club: "Goyer", loop: "1e 9", country: "Nederland", legacyName: "Goyer Golf & Country Club – 1e 9 holes",
     holes: 9,
     tees: [
       {color:"white",  crM:37.2, srM:137, parM:36, crF:0,    srF:0,   parF:0},
@@ -590,7 +740,7 @@ const PRESET_COURSES = [
   },
   {
     id: 900007,
-    name: "Goyer Golf & Country Club – 2e 9 holes",
+    name: "Goyer – 2e 9", club: "Goyer", loop: "2e 9", country: "Nederland", legacyName: "Goyer Golf & Country Club – 2e 9 holes",
     holes: 9,
     tees: [
       {color:"white",  crM:37.9, srM:149, parM:36, crF:0,    srF:0,   parF:0},
@@ -606,7 +756,7 @@ const PRESET_COURSES = [
   // ===== ALMEERDERHOUT =====
   {
     id: 900008,
-    name: "Almeerderhout – Gooimeer 9 holes",
+    name: "Almeerderhout – Gooimeer", club: "Almeerderhout", loop: "Gooimeer", country: "Nederland", legacyName: "Almeerderhout – Gooimeer 9 holes",
     holes: 9,
     tees: [
       {color:"white",  crM:73.4, srM:134, parM:72, crF:0,    srF:0,   parF:0},
@@ -622,7 +772,7 @@ const PRESET_COURSES = [
   },
   {
     id: 900009,
-    name: "Almeerderhout – Markermeer 9 holes",
+    name: "Almeerderhout – Markermeer", club: "Almeerderhout", loop: "Markermeer", country: "Nederland", legacyName: "Almeerderhout – Markermeer 9 holes",
     holes: 9,
     tees: [
       {color:"white",  crM:74.8, srM:145, parM:72, crF:0,    srF:0,   parF:0},
@@ -638,7 +788,7 @@ const PRESET_COURSES = [
   },
   {
     id: 900010,
-    name: "Almeerderhout – IJmeer 9 holes",
+    name: "Almeerderhout – IJmeer", club: "Almeerderhout", loop: "IJmeer", country: "Nederland", legacyName: "Almeerderhout – IJmeer 9 holes",
     holes: 9,
     tees: [
       {color:"white",  crM:72.1, srM:130, parM:72, crF:0,    srF:0,   parF:0},
@@ -654,7 +804,7 @@ const PRESET_COURSES = [
   },
   {
     id: 900011,
-    name: "Almeerderhout – Gooimeer-Markermeer 18 holes",
+    name: "Almeerderhout – Gooimeer-Markermeer", club: "Almeerderhout", loop: "Gooimeer-Markermeer", country: "Nederland", legacyName: "Almeerderhout – Gooimeer-Markermeer 18 holes",
     holes: 18,
     tees: [
       {color:"white",  crM:74.1, srM:139, parM:72, crF:0,    srF:0,   parF:0},
@@ -672,7 +822,7 @@ const PRESET_COURSES = [
   },
   {
     id: 900012,
-    name: "Almeerderhout – Gooimeer-IJmeer 18 holes",
+    name: "Almeerderhout – Gooimeer-IJmeer", club: "Almeerderhout", loop: "Gooimeer-IJmeer", country: "Nederland", legacyName: "Almeerderhout – Gooimeer-IJmeer 18 holes",
     holes: 18,
     tees: [
       {color:"white",  crM:72.7, srM:132, parM:72, crF:0,    srF:0,   parF:0},
@@ -690,7 +840,7 @@ const PRESET_COURSES = [
   },
   {
     id: 900013,
-    name: "Almeerderhout – Markermeer-IJmeer 18 holes",
+    name: "Almeerderhout – Markermeer-IJmeer", club: "Almeerderhout", loop: "Markermeer-IJmeer", country: "Nederland", legacyName: "Almeerderhout – Markermeer-IJmeer 18 holes",
     holes: 18,
     tees: [
       {color:"white",  crM:73.4, srM:138, parM:72, crF:0,    srF:0,   parF:0},
@@ -708,7 +858,7 @@ const PRESET_COURSES = [
   },
   {
     id: 900014,
-    name: "Golfbaan De Texelse – 18 holes",
+    name: "De Texelse – Hele baan", club: "De Texelse", loop: "Hele baan", country: "Nederland", legacyName: "Golfbaan De Texelse – 18 holes",
     holes: 18,
     tees: [
       {color:"white",  crM:73.8, srM:141, parM:72, crF:0,    srF:0,   parF:0},
@@ -726,7 +876,7 @@ const PRESET_COURSES = [
   },
   {
     id: 900015,
-    name: "Wassenaarse Golf Groendael – 9 holes",
+    name: "Groendael – Hele baan", club: "Groendael", loop: "Hele baan", country: "Nederland", legacyName: "Wassenaarse Golf Groendael – 9 holes",
     holes: 9,
     tees: [
       {color:"yellow", crM:35.6, srM:140, parM:35, crF:38.4, srF:157, parF:35},
@@ -740,7 +890,7 @@ const PRESET_COURSES = [
   },
   {
     id: 900016,
-    name: "Kennemer A-course (Van Hengel) – 9 holes",
+    name: "Kennemer – A (Van Hengel)", club: "Kennemer", loop: "A (Van Hengel)", country: "Nederland", legacyName: "Kennemer A-course (Van Hengel) – 9 holes",
     holes: 9,
     tees: [
       {color:"white",  crM:37.8, srM:138, parM:36, crF:0,    srF:0,   parF:0},
@@ -756,7 +906,7 @@ const PRESET_COURSES = [
   },
   {
     id: 900017,
-    name: "Kennemer B-course (Pennink) – 9 holes",
+    name: "Kennemer – B (Pennink)", club: "Kennemer", loop: "B (Pennink)", country: "Nederland", legacyName: "Kennemer B-course (Pennink) – 9 holes",
     holes: 9,
     tees: [
       {color:"white",  crM:36.3, srM:136, parM:36, crF:0,    srF:0,   parF:0},
@@ -772,7 +922,7 @@ const PRESET_COURSES = [
   },
   {
     id: 900018,
-    name: "Kennemer A-B (Van Hengel + Pennink) – 18 holes",
+    name: "Kennemer – A-B", club: "Kennemer", loop: "A-B", country: "Nederland", legacyName: "Kennemer A-B (Van Hengel + Pennink) – 18 holes",
     holes: 18,
     tees: [
       {color:"white",  crM:74.1, srM:138, parM:72, crF:0,    srF:0,   parF:0},
@@ -790,7 +940,7 @@ const PRESET_COURSES = [
   },
   {
     id: 900019,
-    name: "Kennemer C-course (Colt) – 9 holes",
+    name: "Kennemer – C (Colt)", club: "Kennemer", loop: "C (Colt)", country: "Nederland", legacyName: "Kennemer C-course (Colt) – 9 holes",
     holes: 9,
     tees: [
       {color:"white",  crM:36.8, srM:138, parM:36, crF:0,    srF:0,   parF:0},
@@ -806,7 +956,7 @@ const PRESET_COURSES = [
   },
   {
     id: 900020,
-    name: "Kennemer A-C (Van Hengel + Colt) – 18 holes",
+    name: "Kennemer – A-C", club: "Kennemer", loop: "A-C", country: "Nederland", legacyName: "Kennemer A-C (Van Hengel + Colt) – 18 holes",
     holes: 18,
     tees: [
       {color:"white",  crM:74.6, srM:138, parM:72, crF:0,    srF:0,   parF:0},
@@ -824,7 +974,7 @@ const PRESET_COURSES = [
   },
   {
     id: 900021,
-    name: "Kennemer B-C (Pennink + Colt) – 18 holes",
+    name: "Kennemer – B-C", club: "Kennemer", loop: "B-C", country: "Nederland", legacyName: "Kennemer B-C (Pennink + Colt) – 18 holes",
     holes: 18,
     tees: [
       {color:"white",  crM:73.1, srM:137, parM:72, crF:0,    srF:0,   parF:0},
@@ -842,7 +992,7 @@ const PRESET_COURSES = [
   },
   {
     id: 900022,
-    name: "Old Course Loenen – 9 holes",
+    name: "Old Course Loenen – Hele baan", club: "Old Course Loenen", loop: "Hele baan", country: "Nederland", legacyName: "Old Course Loenen – 9 holes",
     holes: 9,
     tees: [
       {color:"white",  crM:36.7, srM:135, parM:36, crF:0,    srF:0,   parF:0},
@@ -858,7 +1008,7 @@ const PRESET_COURSES = [
   },
   {
     id: 900023,
-    name: "Lage Vuursche – 18 holes",
+    name: "De Lage Vuursche – Hele baan", club: "De Lage Vuursche", loop: "Hele baan", country: "Nederland", legacyName: "Lage Vuursche – 18 holes",
     holes: 18,
     tees: [
       {color:"white",  crM:75.2, srM:145, parM:71, crF:0,    srF:0,   parF:0},
@@ -875,7 +1025,7 @@ const PRESET_COURSES = [
   },
   {
     id: 900024,
-    name: "Lage Vuursche – 1e 9 holes",
+    name: "De Lage Vuursche – 1e 9", club: "De Lage Vuursche", loop: "1e 9", country: "Nederland", legacyName: "Lage Vuursche – 1e 9 holes",
     holes: 9,
     tees: [
       {color:"white",  crM:37.2, srM:138, parM:35, crF:0,    srF:0,   parF:0},
@@ -890,7 +1040,7 @@ const PRESET_COURSES = [
   },
   {
     id: 900025,
-    name: "Lage Vuursche – 2e 9 holes",
+    name: "De Lage Vuursche – 2e 9", club: "De Lage Vuursche", loop: "2e 9", country: "Nederland", legacyName: "Lage Vuursche – 2e 9 holes",
     holes: 9,
     tees: [
       {color:"white",  crM:38.1, srM:152, parM:36, crF:0,    srF:0,   parF:0},
@@ -905,7 +1055,7 @@ const PRESET_COURSES = [
   },
   {
     id: 900026,
-    name: "Stippelberg Championship Course – 18 holes",
+    name: "Stippelberg – Championship", club: "Stippelberg", loop: "Championship", country: "Nederland", legacyName: "Stippelberg Championship Course – 18 holes",
     holes: 18,
     tees: [
       {color:"white",  crM:72.7, srM:137, parM:71, crF:0,    srF:0,   parF:0},
@@ -923,7 +1073,7 @@ const PRESET_COURSES = [
   },
   {
     id: 900027,
-    name: "Stippelberg Championship A – 1e 9 holes",
+    name: "Stippelberg – Championship A", club: "Stippelberg", loop: "Championship A", country: "Nederland", legacyName: "Stippelberg Championship A – 1e 9 holes",
     holes: 9,
     tees: [
       {color:"white",  crM:36.0, srM:136, parM:35, crF:0,    srF:0,   parF:0},
@@ -939,7 +1089,7 @@ const PRESET_COURSES = [
   },
   {
     id: 900028,
-    name: "Stippelberg Championship B – 2e 9 holes",
+    name: "Stippelberg – Championship B", club: "Stippelberg", loop: "Championship B", country: "Nederland", legacyName: "Stippelberg Championship B – 2e 9 holes",
     holes: 9,
     tees: [
       {color:"white",  crM:36.7, srM:139, parM:36, crF:0,    srF:0,   parF:0},
@@ -955,7 +1105,7 @@ const PRESET_COURSES = [
   },
   {
     id: 900029,
-    name: "Stippelberg Executive Course C – 9 holes",
+    name: "Stippelberg – Executive C", club: "Stippelberg", loop: "Executive C", country: "Nederland", legacyName: "Stippelberg Executive Course C – 9 holes",
     holes: 9,
     tees: [
       {color:"yellow", crM:29.8, srM:97,  parM:31, crF:31.7, srF:104, parF:31},
@@ -969,7 +1119,7 @@ const PRESET_COURSES = [
   },
   {
     id: 900030,
-    name: "Stippelberg Mix A-C (Championship A + Executive) – 18 holes",
+    name: "Stippelberg – Mix A-C", club: "Stippelberg", loop: "Mix A-C", country: "Nederland", legacyName: "Stippelberg Mix A-C (Championship A + Executive) – 18 holes",
     holes: 18,
     tees: [
       {color:"yellow", crM:65.0, srM:118, parM:66, crF:69.8, srF:127, parF:66},
@@ -985,7 +1135,7 @@ const PRESET_COURSES = [
   },
   {
     id: 900031,
-    name: "Stippelberg Mix B-C (Championship B + Executive) – 18 holes",
+    name: "Stippelberg – Mix B-C", club: "Stippelberg", loop: "Mix B-C", country: "Nederland", legacyName: "Stippelberg Mix B-C (Championship B + Executive) – 18 holes",
     holes: 18,
     tees: [
       {color:"yellow", crM:65.8, srM:121, parM:67, crF:70.6, srF:133, parF:67},
@@ -1000,6 +1150,13 @@ const PRESET_COURSES = [
     ]
   }
 ];
+
+// Bestaande banen op deze telefoon aanvullen met baan/lus/land
+(function migrateCourses(){
+  const before=JSON.stringify(courses);
+  courses=courses.map(c=>normCourse(c));
+  if(JSON.stringify(courses)!==before) save('gm4-courses',courses);
+})();
 
 function showPresets(){
   // Presets now loaded via gedeelde banen
@@ -1031,35 +1188,46 @@ function addPreset(i){
 
 function showCommunity(){ go('s-community'); }
 function renderCommunity(){
-  // Populate share list
-  const sl = document.getElementById('share-course-list');
-  if(!courses.length){ sl.innerHTML='<div class="alert alert-i">Geen banen opgeslagen.</div>'; }
-  else {
-    sl.innerHTML = courses.map((c,i) => '<div class="ci" style="cursor:default">'
-      + '<div><div class="ci-name">'+c.name+'</div>'
-      + '<div class="ci-meta">'+c.holes+' holes · '+c.tees.length+' tee-kleuren</div></div>'
-      + '<button class="btn btn-p btn-sm" onclick="shareCourse('+i+')" style="margin:0">Delen</button>'
-      + '</div>').join('');
-  }
+  renderClubList('share-course-list', courses.map(c=>({c})), {
+    empty:'<div class="alert alert-i">Geen banen opgeslagen.</div>',
+    loopAction:(it,gi,li)=>`<button class="btn btn-p btn-sm" style="margin:0" onclick="shareCourse(courses.indexOf(clItem('share-course-list',${gi},${li}).c))">Delen</button>`
+  });
+  if(window._gedeeldResults) showGedeeld(window._gedeeldResults);
+}
+
+// Resultaten uit Gedeelde banen tonen, gegroepeerd per baan
+function showGedeeld(results){
+  window._gedeeldResults=results;
+  // Dubbele records (zelfde baan + lus + holes) maar één keer tonen
+  const seen=new Set(), items=[];
+  results.forEach((c,i)=>{const k=courseKey(c);if(seen.has(k))return;seen.add(k);items.push({c,idx:i});});
+  renderClubList('gedeeld-results', items, {
+    empty:'<div class="alert alert-i">Geen banen gevonden.</div>',
+    metaExtra:it=>'gedeeld door '+esc(it.c.sharedBy||'onbekend'),
+    clubAction:(g,gi)=>g.items.some(it=>!hasLocal(it.c))
+      ?`<button class="btn btn-p btn-sm" style="margin:0" onclick="importClub(${gi})">Alles laden</button>`
+      :'<span style="color:var(--gl);font-size:11px;font-weight:600">✓ Alles</span>',
+    loopAction:it=>hasLocal(it.c)
+      ?'<span style="color:var(--gl);font-size:11px;font-weight:600;white-space:nowrap">✓ In je lijst</span>'
+      :`<button class="btn btn-p btn-sm" style="margin:0" onclick="importGedeeld(${it.idx})">+ Laden</button>`
+  });
 }
 
 async function searchGedeeld(){
   const q = document.getElementById('gedeeld-search').value.trim();
   const el = document.getElementById('gedeeld-results');
   if(!q){ el.innerHTML='<div class="alert alert-i">Vul een zoekterm in.</div>'; return; }
-  if(!window.fbReady){ el.innerHTML='<div class="alert alert-i">Firebase niet beschikbaar.</div>'; return; }
+  if(!window.fbReady){ el.innerHTML='<div class="alert alert-i">Gedeelde banen niet bereikbaar. Controleer je internetverbinding.</div>'; return; }
   el.innerHTML='<div style="font-size:12px;color:var(--muted)">Zoeken...</div>';
   try {
     const results = await window.fbSearchCourses(q);
-    if(!results.length){ el.innerHTML='<div class="alert alert-i">Geen banen gevonden voor "'+q+'".</div>'; return; }
-    window._gedeeldResults = results;
-    el.innerHTML = results.map((c,i) => '<div class="ci" style="cursor:default">'
-      + '<div><div class="ci-name">'+c.name+'</div>'
-      + '<div class="ci-meta">'+c.holes+' holes · '+(c.tees||[]).length+' tee-kleuren · gedeeld door '+(c.sharedBy||'onbekend')+'</div></div>'
-      + '<button class="btn btn-p btn-sm" onclick="importGedeeld('+i+')" style="margin:0">+ Laden</button>'
-      + '</div>').join('');
+    if(!results.length){ window._gedeeldResults=null; el.innerHTML='<div class="alert alert-i">Geen banen gevonden voor "'+esc(q)+'".</div>'; return; }
+    // Bij een zoekopdracht de gevonden banen meteen openklappen
+    const st=CL['gedeeld-results']||(CL['gedeeld-results']={open:new Set()});
+    st.open=new Set(results.map(c=>normStr(c.country)+'|'+normStr(c.club)));
+    showGedeeld(results);
   } catch(e) {
-    el.innerHTML='<div class="alert alert-i">Fout: '+e.message+'</div>';
+    el.innerHTML='<div class="alert alert-i">Fout: '+esc(e.message)+'</div>';
   }
 }
 
@@ -1073,9 +1241,9 @@ function importAIData(){
       alert('Ongeldige baandata. Controleer of je de volledige JSON hebt geplakt.');
       return;
     }
-    const course = {...data, id: Date.now()};
-    const exists = courses.some(x=>x.name===course.name);
-    if(exists){ if(!confirm(course.name+' staat al in je lijst. Overschrijven?')) return; courses=courses.filter(x=>x.name!==course.name); }
+    const course = normCourse({...data, id: Date.now()});
+    const exists = hasLocal(course);
+    if(exists){ if(!confirm(course.name+' staat al in je lijst. Overschrijven?')) return; courses=courses.filter(x=>courseKey(x)!==courseKey(course)); }
     courses.push(course);
     save('gm4-courses', courses);
     // Upload to Firebase
@@ -1102,39 +1270,28 @@ function importAIData(){
 }
 
 async function browseAllFromFirebase(){
-  if(!window.fbReady){ alert('Firebase niet beschikbaar.'); return; }
+  if(!window.fbReady){ alert('Gedeelde banen niet bereikbaar. Controleer je internetverbinding.'); return; }
   const el = document.getElementById('gedeeld-results');
   el.innerHTML='<div style="font-size:12px;color:var(--muted)">Laden...</div>';
   try {
-    const snap = await fbDb.collection('courses').orderBy('name').get();
-    const results = [];
-    snap.forEach(doc => {
-      const d = doc.data();
-      if(d.name) results.push({...d, _docId: doc.id});
-    });
+    const results = await window.fbAllCourses();
     if(!results.length){ el.innerHTML='<div class="alert alert-i">Geen banen gevonden.</div>'; return; }
-    window._gedeeldResults = results;
-    el.innerHTML = results.map((c,i) => '<div class="ci" style="cursor:default">'
-      + '<div><div class="ci-name">'+c.name+'</div>'
-      + '<div class="ci-meta">'+c.holes+' holes · '+(c.tees||[]).length+' tee-kleuren · gedeeld door '+(c.sharedBy||'onbekend')+'</div></div>'
-      + '<button class="btn btn-p btn-sm" onclick="importGedeeld('+i+')" style="margin:0">+ Laden</button>'
-      + '</div>').join('');
+    if(CL['gedeeld-results']) CL['gedeeld-results'].open=new Set();
+    showGedeeld(results);
   } catch(e){
-    el.innerHTML='<div class="alert alert-i">Fout: '+e.message+'</div>';
+    el.innerHTML='<div class="alert alert-i">Fout: '+esc(e.message)+'</div>';
   }
 }
 
 async function loadAllFromFirebase(){
   if(!window.fbReady){ alert('Firebase niet beschikbaar.'); return; }
   try {
-    const snap = await fbDb.collection('courses').get();
+    const all = await window.fbAllCourses();
     let added = 0, skipped = 0;
-    snap.forEach(doc => {
-      const c = doc.data();
-      if(!c.name) return;
-      const exists = courses.some(x=>x.name===c.name);
-      if(exists){ skipped++; return; }
-      courses.push({...c, id: Date.now()+Math.random()});
+    all.forEach(c => {
+      if(hasLocal(c)){ skipped++; return; }
+      const {_docId,_hadClub,...data}=c;
+      courses.push({...data, id: Date.now()+Math.random()});
       added++;
     });
     save('gm4-courses', courses);
@@ -1182,38 +1339,48 @@ async function shareAllCourses(){
 }
 
 async function shareCourse(idx){
-  if(!window.fbReady){ alert('Firebase niet beschikbaar.'); return; }
-  const c = courses[idx];
+  if(!window.fbReady){ alert('Gedeelde banen niet bereikbaar. Controleer je internetverbinding.'); return; }
+  const c = courses[idx]; if(!c) return;
+  if(c.manual && !confirm(c.name+' is handmatig ingevoerd.\n\nControleer CR, Slope, par en SI goed: iedereen die deze baan laadt, rekent ermee. Toch delen?')) return;
   try {
-    const {id, ...courseData} = c;
-    // Check first if already exists
-    const checkSnap = await fbDb.collection('courses').where('name','==',c.name).get();
-    if(!checkSnap.empty){
-      alert(c.name + ' staat al in Gedeelde banen.');
-      return;
-    }
+    const all = await window.fbAllCourses();
+    if(all.some(x=>courseKey(x)===courseKey(c))){ alert(c.name + ' staat al in Gedeelde banen.'); return; }
     const name = prompt('Jouw naam (wordt zichtbaar bij de baan):', '');
     if(!name) return;
-    const result = await window.fbShareCourse(courseData, name);
-    alert(c.name + ' gedeeld! ✅');
+    const {id, ...courseData} = c;
+    const r = await window.fbShareCourse(courseData, name);
+    alert(r&&r.alreadyExists ? c.name+' staat al in Gedeelde banen.' : c.name + ' gedeeld! ✅');
     renderCommunity();
   } catch(e) {
     alert('Fout bij delen: ' + e.message);
   }
 }
 
+function addSharedCourse(c){
+  const {_docId,_hadClub,sharedBy,sharedAt,...data}=c;
+  const course=normCourse({...data, id: Date.now()+Math.random()});
+  const k=courseKey(course);
+  courses=courses.filter(x=>courseKey(x)!==k);
+  courses.push(course);
+}
 function importGedeeld(idx){
   try {
-    const c = window._gedeeldResults[idx];
+    const c = window._gedeeldResults && window._gedeeldResults[idx];
     if(!c){ alert('Baan niet gevonden.'); return; }
-    const course = {...c, id: Date.now()};
-    delete course._docId;
-    const exists = courses.some(x=>x.name===course.name);
-    if(exists){ if(!confirm(course.name+' staat al in je lijst. Overschrijven?')) return; courses = courses.filter(x=>x.name!==course.name); }
-    courses.push(course);
+    if(hasLocal(c) && !confirm(c.name+' staat al in je lijst. Overschrijven?')) return;
+    addSharedCourse(c);
     save('gm4-courses', courses);
-    alert(course.name + ' toegevoegd! ✅');
+    showGedeeld(window._gedeeldResults);
+    renderCommunity();
   } catch(e) { alert('Fout: '+e.message); }
+}
+function importClub(gi){
+  const g=clGroup('gedeeld-results',gi); if(!g) return;
+  let n=0;
+  g.items.forEach(it=>{ if(!hasLocal(it.c)){ addSharedCourse(it.c); n++; } });
+  save('gm4-courses', courses);
+  renderCommunity();
+  alert(g.club+': '+n+' lus'+(n===1?'':'sen')+' geladen ✅');
 }
 
 function exportData(){
@@ -1249,8 +1416,8 @@ function importData(){
   try {
     const data = JSON.parse(decodeURIComponent(escape(atob(el.value.trim()))));
     if(data.courses){
-      localStorage.setItem('gm4-courses', JSON.stringify(data.courses));
-      courses = data.courses;
+      courses = data.courses.map(c=>normCourse(c));
+      localStorage.setItem('gm4-courses', JSON.stringify(courses));
     }
     if(data.player1){
       localStorage.setItem('gm4-player1', JSON.stringify(data.player1));
@@ -1268,9 +1435,10 @@ function loadDefaultCourses(){
   if(!presets.length){ alert('Geen standaardbanen gevonden.'); return; }
   let added = 0;
   presets.forEach(p => {
-    const exists = courses.some(c => c.name === p.name);
+    const exists = hasLocal(p);
     if(!exists){
-      courses.push({...p, id: Date.now() + Math.random()});
+      const {legacyName, ...data} = p;
+      courses.push({...data, id: Date.now() + Math.random()});
       added++;
     }
   });
@@ -1292,7 +1460,7 @@ function renderHome(){
 // ---- RONDES (opslaan, lijst, detail) ----
 function esc(t){return String(t==null?'':t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function courseSnapshot(c){
-  return {name:c.name, holes:c.holes, siData:JSON.parse(JSON.stringify(c.siData||[])), tees:JSON.parse(JSON.stringify(c.tees||[]))};
+  return {name:c.name, club:c.club, loop:c.loop, country:c.country, holes:c.holes, siData:JSON.parse(JSON.stringify(c.siData||[])), tees:JSON.parse(JSON.stringify(c.tees||[]))};
 }
 // Baan van een ronde: eerst de bewaarde kopie, anders opzoeken in je banen
 function roundCourse(r){
@@ -1513,7 +1681,7 @@ async function makeBackup(){
 }
 function mergeBackup(data){
   let nc=0,nr=0;
-  (data.courses||[]).forEach(c=>{ if(c&&c.name&&!courses.some(x=>x.name===c.name)){courses.push(c);nc++;} });
+  (data.courses||[]).forEach(c=>{ if(c&&c.name){ normCourse(c); if(!hasLocal(c)){courses.push(c);nc++;} } });
   (data.rounds||[]).forEach(r=>{ if(r&&r.id&&!rounds.some(x=>x.id===r.id)){rounds.push(r);nr++;} });
   if(data.player1 && !localStorage.getItem('gm4-player1')) localStorage.setItem('gm4-player1',JSON.stringify(data.player1));
   save('gm4-courses',courses);
@@ -1535,38 +1703,84 @@ function restoreBackupFile(input){
 
 // ---- COURSES ----
 function renderCoursesList(){
-  const el=document.getElementById('courses-list');
-  if(!courses.length){el.innerHTML='<div class="alert alert-i">Nog geen banen opgeslagen.</div>';return;}
-  el.innerHTML=courses.map((c,i)=>`
-    <div class="ci">
-      <div><div class="ci-name">${c.name}</div><div class="ci-meta">${c.holes} holes · ${c.tees.length} tee-kleur(en)</div></div>
-      <div style="display:flex;gap:5px">
-        <button class="btn btn-s btn-sm" onclick="editCourse(${i})">✏️</button>
-        <button class="btn btn-d btn-sm" onclick="delCourse(${i})">🗑</button>
-      </div>
-    </div>`).join('');
+  renderClubList('courses-list', courses.map(c=>({c})), {
+    empty:'<div class="alert alert-i">Nog geen banen opgeslagen. Laad ze via Gedeelde banen.</div>',
+    clubAction:(g,gi)=>`<button class="btn btn-s btn-sm" style="margin:0" onclick="renameClub(${gi})" title="Baan hernoemen">✏️</button>`,
+    loopAction:(it,gi,li)=>`<button class="btn btn-s btn-sm" style="margin:0" onclick="editCourse(courses.indexOf(clItem('courses-list',${gi},${li}).c))">✏️</button>
+      <button class="btn btn-d btn-sm" style="margin:0" onclick="delCourse(courses.indexOf(clItem('courses-list',${gi},${li}).c))">🗑</button>`
+  });
+}
+function renameClub(gi){
+  const g=clGroup('courses-list',gi); if(!g) return;
+  const nn=prompt('Nieuwe naam voor '+g.club+' (geldt voor alle '+g.items.length+' lus(sen)):',g.club);
+  if(!nn||!nn.trim()||nn.trim()===g.club) return;
+  const name=nn.trim();
+  const keys=new Set(courses.map(courseKey));
+  let clash=0;
+  g.items.forEach(it=>{
+    const k=normStr(name)+'|'+normStr(it.c.loop)+'|'+it.c.holes;
+    if(keys.has(k)&&normStr(name)!==normStr(g.club)) clash++;
+  });
+  if(clash&&!confirm(name+' heeft al '+clash+' lus(sen) met dezelfde naam. Toch samenvoegen? Je houdt dan dubbele lussen.')) return;
+  g.items.forEach(it=>{it.c.club=name;normCourse(it.c);});
+  save('gm4-courses',courses);
+  CL['courses-list'].open.delete(g.key);
+  renderCoursesList();
 }
 
+function clubNames(){
+  const m={};
+  courses.forEach(c=>{const k=normStr(c.club);if(!m[k])m[k]={club:c.club,country:c.country};});
+  return Object.values(m).sort((a,b)=>a.club.localeCompare(b.club,'nl'));
+}
+function fillCourseForm(c){
+  const clubs=clubNames();
+  const cs=document.getElementById('ce-club');
+  cs.innerHTML='<option value="">-- Kies een baan --</option>'
+    +clubs.map(x=>`<option value="${esc(x.club)}">${esc(x.club)}</option>`).join('')
+    +'<option value="__new">+ Nieuwe baan…</option>';
+  cs.value=c?c.club:'';
+  const nw=document.getElementById('ce-club-new'); nw.value=''; nw.style.display='none';
+  document.getElementById('ce-loop').value=c?(c.loop===DEFAULT_LOOP?'':c.loop):'';
+  const country=c?c.country:'Nederland';
+  const list=COUNTRIES.includes(country)?COUNTRIES:COUNTRIES.concat([country]);
+  const ctry=document.getElementById('ce-country');
+  ctry.innerHTML=list.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('')+'<option value="__other">Ander land…</option>';
+  ctry.value=country;
+  const cn=document.getElementById('ce-country-new'); cn.value=''; cn.style.display='none';
+  document.getElementById('ce-holes').value=String(c?c.holes:9);
+}
+function ceClubChanged(){
+  const v=document.getElementById('ce-club').value;
+  document.getElementById('ce-club-new').style.display=v==='__new'?'block':'none';
+  const hit=clubNames().find(x=>x.club===v);
+  if(hit){
+    const ctry=document.getElementById('ce-country');
+    if(![...ctry.options].some(o=>o.value===hit.country)) ctry.insertAdjacentHTML('afterbegin',`<option value="${esc(hit.country)}">${esc(hit.country)}</option>`);
+    ctry.value=hit.country;
+    document.getElementById('ce-country-new').style.display='none';
+  }
+}
 function newCourse(){
   editIdx=null; tees=[];
-  document.getElementById('ce-name').value='';
-  document.getElementById('ce-holes').value='9';
+  fillCourseForm(null);
   go('s-course-edit');
   renderTeeList(); renderSIInputs();
 }
 
 function editCourse(i){
+  if(i<0) return;
   editIdx=i;
   const c=courses[i];
-  document.getElementById('ce-name').value=c.name;
-  document.getElementById('ce-holes').value=String(c.holes);
+  fillCourseForm(c);
   tees=JSON.parse(JSON.stringify(c.tees));
   go('s-course-edit');
   renderTeeList(); renderSIInputs();
 }
 
 function delCourse(i){
-  if(confirm(`"${courses[i].name}" verwijderen?`)){
+  if(i<0) return;
+  if(confirm(`"${courses[i].club} – ${courses[i].loop}" verwijderen?`)){
     courses.splice(i,1); save('gm4-courses',courses); renderCoursesList();
   }
 }
@@ -1632,9 +1846,16 @@ function renderSIInputs(){
 }
 
 function saveCourse(){
-  const name=document.getElementById('ce-name').value.trim();
+  const sel=document.getElementById('ce-club').value;
+  let club=sel==='__new'?document.getElementById('ce-club-new').value.trim():sel;
+  if(!club){alert('Kies een baan of vul de naam van een nieuwe baan in.');return;}
+  // Zelfde baan anders getypt (hoofdletters, accenten)? Dan de bestaande schrijfwijze gebruiken
+  const same=clubNames().find(x=>normStr(x.club)===normStr(club));
+  if(same) club=same.club;
+  const loop=document.getElementById('ce-loop').value.trim()||DEFAULT_LOOP;
+  const cv=document.getElementById('ce-country').value;
+  const country=(cv==='__other'?document.getElementById('ce-country-new').value.trim():cv)||'Nederland';
   const holes=parseInt(document.getElementById('ce-holes').value);
-  if(!name){alert('Vul een naam in.');return;}
   if(!tees.length){alert('Voeg minimaal één tee-kleur toe.');return;}
   const siData=[];
   for(let i=1;i<=holes;i++){
@@ -1643,10 +1864,16 @@ function saveCourse(){
       si:parseInt(document.getElementById('si-'+i)?.value||i)
     });
   }
-  const course={id:editIdx!==null?courses[editIdx].id:Date.now(),name,holes,tees:JSON.parse(JSON.stringify(tees)),siData};
-  if(editIdx!==null) courses[editIdx]=course; else courses.push(course);
+  const prev=editIdx!==null?courses[editIdx]:null;
+  const course=normCourse(Object.assign({},prev||{manual:true},{
+    id:prev?prev.id:Date.now(), club, loop, country, holes,
+    tees:JSON.parse(JSON.stringify(tees)), siData
+  }));
+  const k=courseKey(course);
+  if(courses.some((x,i)=>i!==editIdx&&courseKey(x)===k)){alert(club+' heeft al een lus "'+loop+'" met '+holes+' holes.');return;}
+  if(prev) courses[editIdx]=course; else courses.push(course);
   save('gm4-courses',courses);
-  alert('Baan opgeslagen ✅');
+  alert('Opgeslagen ✅');
   go('s-courses');
 }
 
@@ -1664,20 +1891,34 @@ function renderSetup(){
   if(ns) ns.style.display=show?'block':'none';
   const ec2=document.getElementById('extras-card');
   if(ec2) ec2.style.display=show?'block':'none';
-  const el=document.getElementById('course-sel');
-  if(el){
-    if(!courses.length){
-      el.innerHTML='<option value="">Geen banen — voeg er eerst een toe</option>';
-    } else {
-      el.innerHTML='<option value="">-- Kies een baan --</option>'
-        + courses.slice().sort((a,b)=>a.name.localeCompare(b.name)).map(c=>`<option value="${c.id}" ${selCourseId===c.id?'selected':''}>${c.name} (${c.holes} holes)</option>`).join('');
-    }
-  }
+  renderCoursePicker();
   renderSetupPlayers();
 }
 
+let pickerOpen=false;
+function renderCoursePicker(){
+  const el=document.getElementById('course-picker'); if(!el) return;
+  const cur=courses.find(c=>String(c.id)===String(selCourseId));
+  if(cur && !pickerOpen){
+    el.innerHTML=`<div class="ci sel">
+      <div style="min-width:0"><div class="ci-name">${esc(cur.club)}</div><div class="ci-meta">${esc(cur.loop)} · ${cur.holes} holes</div></div>
+      <button class="btn btn-s btn-sm" style="margin:0" onclick="pickerOpen=true;renderCoursePicker()">Wijzig</button>
+    </div>`;
+    return;
+  }
+  el.innerHTML='<div id="setup-club-list"></div>';
+  if(cur){ CL['setup-club-list']=CL['setup-club-list']||{open:new Set()}; CL['setup-club-list'].open.add(normStr(cur.country)+'|'+normStr(cur.club)); }
+  renderClubList('setup-club-list', courses.map(c=>({c})), {
+    singleDirect:true,
+    isSelected:it=>String(it.c.id)===String(selCourseId),
+    onLoopTap:it=>{pickerOpen=false;selCourse(String(it.c.id));},
+    empty:'<div class="alert alert-i">Nog geen banen op deze telefoon. Laad ze via Gedeelde banen.</div><button class="btn btn-s" onclick="showCommunity()">🌍 Naar Gedeelde banen</button>'
+  });
+}
+
 function selCourse(id){
-  id=parseFloat(id)||id;
+  const hit=courses.find(c=>String(c.id)===String(id));
+  id=hit?hit.id:(parseFloat(id)||id);
   selCourseId=id;
   renderSetup();
   // Show player section now that a course is chosen
@@ -2575,7 +2816,7 @@ function renderSummary(){
 }
 
 function newRound(){
-  R=null;selCourseId=null;fmt='stableford';extras={};
+  R=null;selCourseId=null;pickerOpen=false;fmt='stableford';extras={};
   setupPlayers=[{name:'',hcpIdx:'',gender:'m',teeColor:'',holes18:true},{name:'',hcpIdx:'',gender:'m',teeColor:'',holes18:true}];
   go('s-home');
 }
