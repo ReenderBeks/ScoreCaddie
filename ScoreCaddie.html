@@ -635,7 +635,7 @@ function go(id){
   document.querySelectorAll('.scr').forEach(s=>s.classList.remove('on'));
   document.getElementById(id).classList.add('on');
   if(id==='s-courses') renderCoursesList();
-  if(id==='s-setup') renderSetup();
+  if(id==='s-setup'){ pickerOpen=false; renderSetup(); }
   if(id==='s-home') renderHome();
   if(id==='s-summary') renderSummary();
   if(id==='s-community') renderCommunity();
@@ -1147,6 +1147,56 @@ const PRESET_COURSES = [
       {par:4,si:16},{par:4,si:12},{par:5,si:10},{par:4,si:8},
       {par:3,si:11},{par:4,si:1},{par:3,si:15},{par:4,si:5},{par:4,si:3},
       {par:3,si:17},{par:4,si:9},{par:3,si:13},{par:3,si:7}
+    ]
+  },
+  {
+    id: 900032,
+    name: "Sallandsche – Hele baan", club: "Sallandsche", loop: "Hele baan", country: "Nederland",
+    holes: 18,
+    tees: [
+      {color:"white",  crM:72.4, srM:131, parM:72, crF:0,    srF:0,   parF:0},
+      {color:"yellow", crM:71.5, srM:128, parM:72, crF:77.4, srF:140, parF:72},
+      {color:"blue",   crM:68.5, srM:118, parM:72, crF:73.8, srF:130, parF:72},
+      {color:"red",    crM:67.4, srM:115, parM:72, crF:72.6, srF:128, parF:72},
+      {color:"orange", crM:63.4, srM:109, parM:72, crF:67.6, srF:112, parF:72}
+    ],
+    siData: [
+      {par:4,si:7},{par:4,si:5},{par:4,si:17},{par:5,si:3},{par:3,si:13},
+      {par:4,si:11},{par:5,si:9},{par:4,si:1},{par:3,si:15},
+      {par:4,si:4},{par:5,si:16},{par:4,si:12},{par:4,si:10},{par:3,si:18},
+      {par:4,si:2},{par:5,si:14},{par:4,si:6},{par:3,si:8}
+    ]
+  },
+  {
+    id: 900033,
+    name: "Sallandsche – 1e 9", club: "Sallandsche", loop: "1e 9", country: "Nederland",
+    holes: 9,
+    tees: [
+      {color:"white",  crM:36.1, srM:136, parM:36, crF:0,    srF:0,   parF:0},
+      {color:"yellow", crM:35.8, srM:131, parM:36, crF:38.6, srF:139, parF:36},
+      {color:"blue",   crM:34.4, srM:114, parM:36, crF:36.7, srF:131, parF:36},
+      {color:"red",    crM:33.8, srM:110, parM:36, crF:36.2, srF:126, parF:36},
+      {color:"orange", crM:31.1, srM:107, parM:36, crF:32.6, srF:105, parF:36}
+    ],
+    siData: [
+      {par:4,si:7},{par:4,si:5},{par:4,si:17},{par:5,si:3},{par:3,si:13},
+      {par:4,si:11},{par:5,si:9},{par:4,si:1},{par:3,si:15}
+    ]
+  },
+  {
+    id: 900034,
+    name: "Sallandsche – 2e 9", club: "Sallandsche", loop: "2e 9", country: "Nederland",
+    holes: 9,
+    tees: [
+      {color:"white",  crM:36.4, srM:125, parM:36, crF:0,    srF:0,   parF:0},
+      {color:"yellow", crM:35.8, srM:125, parM:36, crF:38.8, srF:141, parF:36},
+      {color:"blue",   crM:34.1, srM:123, parM:36, crF:37.1, srF:130, parF:36},
+      {color:"red",    crM:33.7, srM:119, parM:36, crF:36.5, srF:129, parF:36},
+      {color:"orange", crM:32.7, srM:112, parM:36, crF:35.1, srF:120, parF:36}
+    ],
+    siData: [
+      {par:4,si:4},{par:5,si:16},{par:4,si:12},{par:4,si:10},{par:3,si:18},
+      {par:4,si:2},{par:5,si:14},{par:4,si:6},{par:3,si:8}
     ]
   }
 ];
@@ -1896,18 +1946,25 @@ function renderSetup(){
 }
 
 let pickerOpen=false;
+function openPicker(){
+  const cur=courses.find(c=>String(c.id)===String(selCourseId));
+  const st=CL['setup-club-list']||(CL['setup-club-list']={open:new Set()});
+  st.open=new Set(cur?[normStr(cur.country)+'|'+normStr(cur.club)]:[]);
+  pickerOpen=true; renderCoursePicker();
+}
 function renderCoursePicker(){
   const el=document.getElementById('course-picker'); if(!el) return;
   const cur=courses.find(c=>String(c.id)===String(selCourseId));
-  if(cur && !pickerOpen){
-    el.innerHTML=`<div class="ci sel">
-      <div style="min-width:0"><div class="ci-name">${esc(cur.club)}</div><div class="ci-meta">${esc(cur.loop)} · ${cur.holes} holes</div></div>
-      <button class="btn btn-s btn-sm" style="margin:0" onclick="pickerOpen=true;renderCoursePicker()">Wijzig</button>
-    </div>`;
+  if(!pickerOpen){
+    el.innerHTML=cur
+      ? `<div class="ci sel">
+          <div style="min-width:0"><div class="ci-name">${esc(cur.club)}</div><div class="ci-meta">${esc(cur.loop)} · ${cur.holes} holes</div></div>
+          <button class="btn btn-s btn-sm" style="margin:0" onclick="openPicker()">Wijzig</button>
+        </div>`
+      : `<button class="btn btn-s" style="margin-top:2px" onclick="openPicker()">⛳ Kies een baan en lus</button>`;
     return;
   }
-  el.innerHTML='<div id="setup-club-list"></div>';
-  if(cur){ CL['setup-club-list']=CL['setup-club-list']||{open:new Set()}; CL['setup-club-list'].open.add(normStr(cur.country)+'|'+normStr(cur.club)); }
+  el.innerHTML='<div id="setup-club-list"></div><div class="back" style="justify-content:center;margin:4px 0 0" onclick="pickerOpen=false;renderCoursePicker()">Sluiten</div>';
   renderClubList('setup-club-list', courses.map(c=>({c})), {
     singleDirect:true,
     isSelected:it=>String(it.c.id)===String(selCourseId),
